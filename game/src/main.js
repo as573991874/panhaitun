@@ -13,6 +13,7 @@
   resize();
 
   G.Input.init(canvas);
+  G.AgeRating.init();
 
   // 菜单用方向键补充映射
   Object.assign(G.Input.map, { ArrowUp: 'up', ArrowLeft: 'left', ArrowDown: 'down', ArrowRight: 'right' });

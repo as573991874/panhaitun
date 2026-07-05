@@ -63,6 +63,8 @@ class TitleScene {
     this.dolphinX += dt * 120;
     if (this.dolphinX > G.W + 150) this.dolphinX = -150;
     G.ThatKey.update(dt);
+    G.AgeRating.update();
+    if (G.AgeRating.show) return;
     if (G.Input.just.attack) { G.audio.confirm(); G.flow.start(); }
     if (G.Input.just.skill) { G.audio.select(); G.setScene(new LevelSelectScene()); }
   }
@@ -106,6 +108,7 @@ class TitleScene {
     ctx.fillText('【K】选关', G.W / 2, 890);
     ctx.fillText('全十关 · 剧情约 2 小时', G.W / 2, 1040);
     G.ThatKey.draw(ctx);
+    G.AgeRating.draw(ctx);
   }
 }
 G.TitleScene = TitleScene;

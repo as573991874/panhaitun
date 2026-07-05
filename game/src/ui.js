@@ -260,6 +260,102 @@ G.drawPortrait = (ctx, id, x, y, s) => {
   ctx.restore();
 };
 
+// ---------------- 适龄提示（16+ 图标 + 弹窗）----------------
+G.AgeRating = {
+  icon: null,
+  loaded: false,
+  show: false,
+  x: 120, y: 955, w: 55, h: 72,
+
+  init() {
+    this.icon = new Image();
+    this.icon.onload = () => { this.loaded = true; };
+    this.icon.src = 'assets/16+.png';
+  },
+
+  update() {
+    if (!this.loaded) return;
+    const m = G.Input.mouse;
+    if (m.just) {
+      if (this.show) {
+        this.show = false;
+        G.audio.select && G.audio.select();
+        return;
+      }
+      if (m.x >= this.x && m.x <= this.x + this.w && m.y >= this.y && m.y <= this.y + this.h) {
+        this.show = true;
+        G.audio.confirm && G.audio.confirm();
+      }
+    }
+    if (this.show && (G.Input.just.attack || G.Input.just.skill || G.Input.just.dash || G.Input.just.heal)) {
+      this.show = false;
+    }
+  },
+
+  draw(ctx) {
+    if (!this.loaded) return;
+    ctx.drawImage(this.icon, this.x, this.y, this.w, this.h);
+    if (this.show) this.drawModal(ctx);
+  },
+
+  drawModal(ctx) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, G.W, G.H);
+
+    const pw = 700, ph = 660, px = (G.W - pw) / 2, py = (G.H - ph) / 2;
+    ctx.fillStyle = 'rgba(16,22,30,0.97)';
+    G.rr(ctx, px, py, pw, ph, 18); ctx.fill();
+    ctx.strokeStyle = '#4a5a6a'; ctx.lineWidth = 2;
+    G.rr(ctx, px, py, pw, ph, 18); ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#e8c170';
+    ctx.font = G.font(34);
+    ctx.fillText('适龄提示', G.W / 2, py + 54);
+
+    ctx.textAlign = 'left';
+    let ly = py + 96;
+    const section = (title, lines) => {
+      ctx.fillStyle = '#ffd166';
+      ctx.font = G.font(22);
+      ctx.fillText(title, px + 40, ly);
+      ly += 32;
+      ctx.fillStyle = '#c8d0d8';
+      ctx.font = G.font(20);
+      for (const line of lines) {
+        ctx.fillText(line, px + 56, ly);
+        ly += 28;
+      }
+      ly += 10;
+    };
+
+    section('游戏类型', ['角色扮演动作游戏']);
+    section('适用年龄', ['建议 16 周岁及以上玩家']);
+    section('监护提示', ['未成年人请在家长监护下使用']);
+
+    section('游戏内容描述', [
+      '本游戏包含幻想战斗、剧情叙事、策略决策等元素，',
+      '整体风格轻松幽默，无血腥暴力或不当内容。',
+    ]);
+
+    section('防沉迷规则说明', [
+      '未成年人账号将受防沉迷系统管理，',
+      '限制游戏时长与时段，超时将强制下线。',
+    ]);
+
+    section('游戏功能说明', [
+      '剧情模式 · 键契系统 · 战斗挑战 · 角色成长',
+    ]);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#6a7a8a';
+    ctx.font = G.font(18);
+    ctx.fillText('点击任意处或按操作键关闭', G.W / 2, py + ph - 30);
+    ctx.restore();
+  },
+};
+
 function drawCultivator(ctx, g, ox, oy, t) {
   ctx.save();
   ctx.translate(ox, oy);

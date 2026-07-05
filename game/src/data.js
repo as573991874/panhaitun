@@ -267,14 +267,14 @@ G.DATA.CARDS = [
   {
     id: 'tsunami', name: '一息千浪', key: 'J',
     ability: '尾拍出招快 35%',
-    restrict: '别·在豚跃后·按·那个·攻·键', restrictNote: '豚跃后 1 秒内按 J → 天谴',
+    restrict: '豚跃后·别·按·那个·攻·键', restrictNote: '豚跃后 1 秒内按 J → 天谴',
     dur: 2, curse: 'dashThenAttack', conflicts: [],
     apply() { G.run.mods.attackCdMul *= 0.65; },
   },
   {
     id: 'phantom', name: '幻影豚跃', key: '空格',
     ability: '豚跃 +1 段充能',
-    restrict: '别·朝原方向·按·那个·跃·键', restrictNote: '连续两次同向豚跃 → 天谴',
+    restrict: '别·原方向·按·那个·跃·键', restrictNote: '连续两次同向豚跃 → 天谴',
     dur: 2, curse: 'sameDirDash', conflicts: [],
     apply() { G.run.mods.dashCharges = 2; },
   },
@@ -295,14 +295,14 @@ G.DATA.CARDS = [
   {
     id: 'surge', name: '汹涌回响', key: 'K',
     ability: '音波积攒速度 +50%',
-    restrict: '音波满时·不得不·按·那个·爆·键', restrictNote: '满值后 5 秒内不引爆 → 自爆',
+    restrict: '音波满时·别不·按·那个·爆·键', restrictNote: '满值后 5 秒内不引爆 → 自爆',
     dur: 2, curse: 'mustBoom', conflicts: [],
     apply() { G.run.mods.waveGainMul *= 1.5; },
   },
   {
     id: 'breath', name: '深海吐纳', key: 'L',
     ability: '吐纳回复量翻倍',
-    restrict: '别·急着松开·那个·纳·键', restrictNote: '吐纳引导从 1 秒变 2 秒',
+    restrict: '别·急着按·那个·纳·键', restrictNote: '吐纳引导从 1 秒变 2 秒',
     dur: 2, curse: null, conflicts: ['lv4', 'lv8'],
     apply() { G.run.mods.healMul *= 2; G.run.mods.channelTime = 2.0; },
   },
@@ -316,7 +316,7 @@ G.DATA.CARDS = [
   {
     id: 'slippery', name: '滑不留手', key: 'WASD',
     ability: '游速 +20%',
-    restrict: '别·停下·那些·移动·键', restrictNote: '静止超过 2 秒 → 天谴',
+    restrict: '别·停下·按·那个·移动·键', restrictNote: '静止超过 2 秒 → 天谴',
     dur: 2, curse: 'noStill', conflicts: ['lv5'],
     apply() { G.run.mods.speedMul *= 1.2; },
   },

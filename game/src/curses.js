@@ -234,7 +234,7 @@ G.Curses = {
     // 一息千浪：x别x在豚跃后x按x那个x攻x键
     dashThenAttack: () => new CurseRule({
       id: 'dashThenAttack',
-      short: '「别·在豚跃后·按·那个·攻·键」',
+      short: '「豚跃后·别·按·那个·攻·键」',
       window: 0,
       onNotify(what) { if (what === 'dash') this.window = 1.0; return null; },
       onPress(a) { return (a === 'attack' && this.window > 0) ? SMITE('冲·砍·分·离！') : null; },
@@ -245,7 +245,7 @@ G.Curses = {
     // 幻影豚跃：x别x朝原方向x按x那个x跃x键
     sameDirDash: () => new CurseRule({
       id: 'sameDirDash',
-      short: '「别·朝原方向·按·那个·跃·键」',
+      short: '「别·原方向·按·那个·跃·键」',
       lastDir: null,
       onNotify(what, data) {
         if (what !== 'dash') return null;
@@ -282,7 +282,7 @@ G.Curses = {
     // 汹涌回响：x音波满时x不得不x按x那个x爆x键
     mustBoom: () => new CurseRule({
       id: 'mustBoom',
-      short: '「音波满时·不得不·按·那个·爆·键」',
+      short: '「音波满时·别不·按·那个·爆·键」',
       fuse: -1,
       update(dt) {
         const b = G.currentBattle;
@@ -310,7 +310,7 @@ G.Curses = {
     // 滑不留手：x别x停下x那些x移动x键
     noStill: () => new CurseRule({
       id: 'noStill',
-      short: '「别·停下·那些·移动·键」',
+      short: '「别·停下·按·那个·移动·键」',
       stillT: 0, lastX: 0, lastY: 0,
       update(dt) {
         const b = G.currentBattle;

@@ -1,7 +1,9 @@
 // 开发用零依赖静态服务器：node tools/server.js
 const http = require('http'), fs = require('fs'), path = require('path');
-const root = path.join(__dirname, '..', 'game');
+const root = path.join(__dirname, '..');
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.wav': 'audio/wav', '.mp3': 'audio/mpeg' };
+// 只解码 %XX，不把 + 转空格（URL 路径中 + 是字面量）
+const dec = s => s.replace(/%([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
 http.createServer((req, res) => {
   // 调试：POST /shot 接收 base64 截图落盘
   if (req.method === 'POST' && req.url === '/shot') {
@@ -14,8 +16,8 @@ http.createServer((req, res) => {
     });
     return;
   }
-  let p = decodeURIComponent(req.url.split('?')[0]);
-  if (p === '/') p = '/index.html';
+  let p = dec(req.url.split('?')[0]);
+  if (p === '/') p = '/game/index.html';
   const f = path.normalize(path.join(root, p));
   if (!f.startsWith(root)) { res.writeHead(403); res.end(); return; }
   fs.readFile(f, (e, d) => {
