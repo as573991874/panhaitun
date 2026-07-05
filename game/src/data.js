@@ -15,6 +15,8 @@ G.DATA.CHARS = {
   warden:   { name: '执法堂主', color: '#8a8a9a', g: { robe: '#3a3a4a', skin: '#c0a890', expr: 'angry', beard: 1 } },
   master:   { name: '玄键宗主', color: '#d4a017', g: { robe: '#1a1a2a', skin: '#d8c0a0', expr: 'cold', crown: 1 } },
   heaven:   { name: '天道', color: '#ffd166', g: { eye: 1 } },
+  linger:   { name: '灵儿', color: '#9ad8c8', g: { fairy: 1 } },
+  jingshu:  { name: '静姝', color: '#7ab0d0', g: { robe: '#2a5a70', skin: '#e8d0c0', expr: 'gentle', hair: 1 } },
 };
 
 // ---- 对话脚本 ----
@@ -83,6 +85,10 @@ G.DATA.DIALOGS = {
     { who: 'sister', text: '你怎么每次都躲得开？！' },
     { who: 'tuntun', text: '师姐，你变脸之前，眉毛会先动。' },
     { who: 'granny', text: '（低声）其实是键变红前会先发白……让他装，让他装。' },
+    { who: 'sister', text: '……喂，胖子。你的尾拍，节奏不坏。' },
+    { who: 'sister', text: '这条红线，另一头先押你那儿。要是打不赢天键宗——拿命来还！' },
+    { who: 'granny', text: '（哟。红颜咒，改红线咒了。）' },
+    { who: 'narrator', text: '【羁绊达成：红绡 —— 神通池解锁「缘·红绡」一脉，突破时可召她入阵】' },
   ] },
 
   lv4Intro: { bg: 'hall', lines: [
@@ -95,7 +101,11 @@ G.DATA.DIALOGS = {
     { who: 'executor', text: '单手……全程单手？！你到底是什么东西……' },
     { who: 'granny', text: '查到了。小豚，你吞下的那块无字键帽——是天键盘最后一块残片。' },
     { who: 'tuntun', text: '所以宗主找了三百年的东西……在我肚子里？' },
-    { who: 'granny', text: '快走。这里不能久留。' },
+    { who: 'linger', text: '（书架后探出个小脑袋）大人大人！阁里的键帽们吵着要跟你走！还有……还有灵儿！' },
+    { who: 'granny', text: '守阁灵？小丫头片子，阁不守了？' },
+    { who: 'linger', text: '执事都坏掉了，还守给谁看嘛。豚豚大人，收留灵儿！灵儿会吹泡泡！' },
+    { who: 'narrator', text: '【羁绊达成：灵儿 —— 神通池解锁「缘·灵儿」一脉，突破时可召她相随】' },
+    { who: 'granny', text: '……行了行了。快走，这里不能久留。' },
   ] },
 
   lv5Intro: { bg: 'arena', lines: [
@@ -106,6 +116,12 @@ G.DATA.DIALOGS = {
   lv5Win: { bg: 'arena', lines: [
     { who: 'couple', text: '（男）你怎么被打中的？！（女）你才是怎么被打中的？！' },
     { who: 'tuntun', text: '你俩吵架的时候，就都忘了动。' },
+    { who: 'jingshu', text: '（静姝忽然摘下道侣玉佩，轻轻放在地上）离缘。' },
+    { who: 'couple', text: '（男）静、静姝？！十年合击，你说离就离？！' },
+    { who: 'jingshu', text: '十年了。动的是你，错的也是你，挨骂的，是我。' },
+    { who: 'jingshu', text: '豚豚道友。我想试试——一个人的「静」。' },
+    { who: 'granny', text: '（豚豚啊豚豚，你这是什么胖鱼体质。）' },
+    { who: 'narrator', text: '【羁绊达成：静姝 —— 神通池解锁「缘·静姝」一脉，突破时可召她入阵】' },
     { who: 'granny', text: '「内门弟子豚豚」。啧，听着还挺像回事。' },
   ] },
 

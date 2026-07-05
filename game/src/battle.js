@@ -5,21 +5,30 @@ class Battle {
     this.onWin = onWin;
     this.player = new G.Player();
     this.enemies = [];
-    this.bullets = [];
+    this.bullets = [];    // 敌弹
+    this.pshots = [];     // 友方弹幕（水刃/花瓣/水箭/反奏……）
+    this.bombs = [];      // 残影炸弹
+    this.delayedBooms = [];
+    this.chains = [];     // 连环爆
+    this.pickups = [];    // 回复泡
     this.markers = [];
-    this.bubbles = [];   // 泡影护体
-    this.fields = [];    // 音爆余韵声场
+    this.bubbles = [];
+    this.fields = [];
+    this.companions = [];
     this.fx = [];
     this.wave = -1;
     this.bossSpawned = false;
     this.deaths = 0;
     this.enemyHpMul = 1;
+    this.freezeT = 0;     // 刹那时凝
+    this.lg2cd = 0;       // 灵光护主冷却
     this.state = def.curse ? 'curse' : 'fight';
     this.stateT = 0;
     this.tipT = 0;
     this.tipShown = false;
     this.winT = 0;
     this.mercyAsk = false;
+    this.pick = null;     // 升级三选一覆盖层
   }
 
   enter() {
@@ -33,6 +42,7 @@ class Battle {
     G.Input.setRules(rules);
     G.events.clear('punish');
     G.events.on('punish', info => this.onPunish(info));
+    this.syncCompanions();
     if (this.state === 'fight') this.nextWave();
   }
   exit() {
@@ -42,8 +52,34 @@ class Battle {
     G.events.clear('punish');
   }
 
+  // 羁绊同伴：按已缔结的缘起神通上场（升级中途缔结也会即刻驰援）
+  syncCompanions() {
+    const want = [['hx1', 'hongxiao'], ['lg1', 'linger'], ['js1', 'jingshu']];
+    for (const [pid, kind] of want) {
+      if (G.has(pid) && !this.companions.some(c => c.kind === kind)) {
+        const c = new G.Companion(kind);
+        c.x = this.player.x + G.util.rand(-80, 80);
+        c.y = this.player.y - 80;
+        this.companions.push(c);
+        this.fx.push({ type: 'ring', x: c.x, y: c.y, t: 0.5, max: 80, color: '#e8c170' });
+        c.say(kind === 'hongxiao' ? '本师姐来了！' : kind === 'linger' ? '灵儿来啦～' : '静。');
+      }
+    }
+  }
+
   addBubble(x, y) { this.bubbles.push({ x, y, hp: 3, t: 4 }); }
   addField(x, y, r) { this.fields.push({ x, y, r, t: 3 }); }
+
+  // ---------- 修为 ----------
+  addXp(n) {
+    G.run.xp += n;
+    while (G.run.xp >= G.Powers.xpNeed(G.run.level)) {
+      G.run.xp -= G.Powers.xpNeed(G.run.level);
+      G.run.level++;
+      G.run.levelQueue++;
+      G.audio.win();
+    }
+  }
 
   // ---------- 出怪 ----------
   nextWave() {
@@ -91,6 +127,7 @@ class Battle {
     this.player.smite(res.dmgFrac !== undefined ? res.dmgFrac : 0.15, res.stun || 0.5);
     this.fx.push({ type: 'lightning', x: this.player.x, y: this.player.y, t: 0.45 });
     this.fx.push({ type: 'text', x: this.player.x, y: this.player.y - 70, t: 1.0, str: res.msg || '天谴！', color: '#ffd166', size: 40 });
+    if (G.has('dao5')) this.fx.push({ type: 'text', x: this.player.x, y: this.player.y - 110, t: 1.2, str: '共鸣！伤害翻倍！', color: '#ff9166', size: 28 });
     this.flash = 0.35;
     G.addShake(16, 0.35);
     G.audio.punish();
@@ -115,6 +152,7 @@ class Battle {
     this.player.x = G.W / 2; this.player.y = G.ARENA.y + G.ARENA.h / 2;
     this.player.stunT = 0; this.player.wave = 0;
     this.enemies = []; this.bullets = []; this.markers = []; this.bubbles = []; this.fields = [];
+    this.pshots = []; this.bombs = []; this.delayedBooms = []; this.chains = []; this.pickups = [];
     this.wave--;
     if (this.bossSpawned) { this.state = 'bossIntro'; this.stateT = 1.2; this.wave = this.def.waves.length - 1; }
     else { this.state = 'fight'; this.nextWave(); }
@@ -129,6 +167,8 @@ class Battle {
   // ---------- 主更新 ----------
   update(dt) {
     this.flash = Math.max(0, (this.flash || 0) - dt);
+    this.freezeT = Math.max(0, this.freezeT - dt);
+    this.lg2cd = Math.max(0, this.lg2cd - dt);
     G.ThatKey.update(dt);
 
     if (this.state === 'curse') {
@@ -158,6 +198,12 @@ class Battle {
       if (this.winT <= 0) { this.exit(); this.onWin(); }
       return;
     }
+    // 升级三选一（世界暂停）
+    if (this.state === 'levelup') {
+      G.Input.combatActive = false;
+      this.pick.update(dt);
+      return;
+    }
 
     // --- fight ---
     if (this.tipT > 0) {
@@ -165,9 +211,22 @@ class Battle {
       G.Input.combatActive = false;
       return;
     }
+    // 境界突破触发
+    if (G.run.levelQueue > 0) {
+      G.run.levelQueue--;
+      this.state = 'levelup';
+      this.pick = new G.PowerPick(this.def.id, () => {
+        this.state = 'fight';
+        this.player.iframes = Math.max(this.player.iframes, 1.2);
+        this.syncCompanions();
+        this.pick = null;
+      });
+      return;
+    }
     G.Input.combatActive = true;
     G.Input.update(dt);
     this.player.update(dt, this);
+    for (const c of this.companions) c.update(dt, this);
 
     for (const m of this.markers) {
       m.t -= dt;
@@ -179,27 +238,174 @@ class Battle {
     }
     this.markers = this.markers.filter(m => m.t > 0);
 
-    for (const e of this.enemies) e.update(dt, this);
-    // 声场灼烧
+    // 敌人（眩晕跳过 / 迟缓减速）
+    for (const e of this.enemies) {
+      if (e.stunT > 0) { e.stunT -= dt; continue; }
+      const f = e.slowT > 0 ? 0.5 : 1;
+      if (e.slowT > 0) e.slowT -= dt;
+      e.update(dt * f, this);
+    }
+
+    // 声场：灼烧 +（缓声之环）迟缓
     for (const f of this.fields) {
       f.t -= dt;
       for (const e of this.enemies) {
-        if (G.util.dist(f.x, f.y, e.x, e.y) < f.r + e.r) e.hp -= 15 * dt * (e.hp <= 0 ? 0 : 1);
+        if (G.util.dist(f.x, f.y, e.x, e.y) < f.r + e.r) {
+          e.hp -= 15 * dt;
+          e.flash = Math.max(e.flash, 0.05);
+          if (G.has('so4')) e.slowT = Math.max(e.slowT, 0.2);
+        }
       }
     }
     this.fields = this.fields.filter(f => f.t > 0);
-    for (const e of this.enemies) if (e.hp <= 0) e.dead = true;
 
-    const killed = this.enemies.filter(e => e.dead);
+    // 残影炸弹
+    for (const b of this.bombs) {
+      b.t -= dt;
+      if (b.t <= 0) {
+        for (const e of this.enemies) {
+          if (G.util.dist(b.x, b.y, e.x, e.y) < b.r + e.r) e.hit(b.dmg, b.x, b.y, 200);
+        }
+        this.fx.push({ type: 'ring', x: b.x, y: b.y, t: 0.35, max: b.r, color: '#b0a0e8' });
+        if (b.needles) {
+          for (let i = 0; i < 6; i++) {
+            const a = i * Math.PI / 3;
+            this.pshots.push({
+              x: b.x, y: b.y, vx: Math.cos(a) * 440, vy: Math.sin(a) * 440,
+              r: 7, dmg: 8 * (G.run.mods.synergyMul || 1), pierce: false, travel: 0, maxTravel: 700, color: '#b0a0e8', hits: [],
+            });
+          }
+        }
+        G.audio.boom();
+      }
+    }
+    this.bombs = this.bombs.filter(b => b.t > 0);
+
+    // 双重奏
+    for (const b of this.delayedBooms) {
+      b.t -= dt;
+      if (b.t <= 0) {
+        for (const e of this.enemies) {
+          if (G.util.dist(b.x, b.y, e.x, e.y) < b.r + e.r) {
+            e.hit(b.dmg, b.x, b.y, 250);
+            if (G.has('so6') && e.hp <= 0) this.chains.push({ x: e.x, y: e.y, t: 0.2 });
+          }
+        }
+        this.fx.push({ type: 'ring', x: b.x, y: b.y, t: 0.4, max: b.r, color: '#6ee7ff' });
+        G.audio.boom();
+      }
+    }
+    this.delayedBooms = this.delayedBooms.filter(b => b.t > 0);
+
+    // 连环爆
+    for (const c of this.chains) {
+      c.t -= dt;
+      if (c.t <= 0) {
+        for (const e of this.enemies) {
+          if (G.util.dist(c.x, c.y, e.x, e.y) < 80 + e.r) e.hit(15 * (G.run.mods.synergyMul || 1), c.x, c.y, 150);
+        }
+        this.fx.push({ type: 'ring', x: c.x, y: c.y, t: 0.3, max: 80, color: '#ffb86e' });
+      }
+    }
+    this.chains = this.chains.filter(c => c.t > 0);
+
+    // 击杀结算（修为）
+    const killed = this.enemies.filter(e => e.dead || e.hp <= 0);
     for (const e of killed) {
+      e.dead = true;
+      this.addXp(e.xp || 12);
       this.fx.push({ type: 'ring', x: e.x, y: e.y, t: 0.3, max: e.r * 2, color: '#8a97a5' });
+      this.fx.push({ type: 'text', x: e.x, y: e.y - e.r - 20, t: 0.7, str: '+' + (e.xp || 12), color: '#b8a8e8', size: 20 });
       for (let i = 0; i < 6; i++) this.fx.push({ type: 'spark', x: e.x, y: e.y, t: 0.4, a: Math.random() * 7, sp: G.util.rand(100, 300) });
     }
     this.enemies = this.enemies.filter(e => !e.dead);
 
-    // 子弹（泡泡可挡）
+    // 友方弹幕
+    const syn = 1;
+    for (const s of this.pshots) {
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      s.travel = (s.travel || 0) + Math.hypot(s.vx, s.vy) * dt;
+      if (s.travel > (s.maxTravel || 800)) {
+        if (s.returns && !s.returned) { s.returned = true; s.vx = -s.vx; s.vy = -s.vy; s.travel = 0; s.hits = []; }
+        else s.dead = true;
+      }
+      for (const e of this.enemies) {
+        if (s.hits.includes(e)) continue;
+        if (G.util.dist(s.x, s.y, e.x, e.y) < s.r + e.r) {
+          s.hits.push(e);
+          e.hit(s.dmg, s.x, s.y, s.push || 60);
+          if (s.slow) e.slowT = Math.max(e.slowT, 2);
+          if (s.ripple) {
+            for (const e2 of this.enemies) {
+              if (e2 !== e && G.util.dist(s.x, s.y, e2.x, e2.y) < 70 + e2.r) e2.hit(6 * syn, s.x, s.y, 40);
+            }
+            this.fx.push({ type: 'ring', x: s.x, y: s.y, t: 0.25, max: 70, color: '#7ab0d0' });
+          }
+          if (s.split && !s.didSplit) {
+            s.didSplit = true;
+            const base = Math.atan2(s.vy, s.vx);
+            for (const da of [-0.7, 0.7]) {
+              this.pshots.push({
+                x: s.x, y: s.y, vx: Math.cos(base + da) * 480, vy: Math.sin(base + da) * 480,
+                r: 8, dmg: 8 * (G.run.mods.synergyMul || 1), pierce: false, travel: 0, maxTravel: 500, color: '#8fd8f0', hits: [],
+              });
+            }
+          }
+          if (!s.pierce) { s.dead = true; break; }
+        }
+      }
+      const A = G.ARENA;
+      if (s.x < A.x - 60 || s.x > A.x + A.w + 60 || s.y < A.y - 60 || s.y > A.y + A.h + 60) s.dead = true;
+    }
+    this.pshots = this.pshots.filter(s => !s.dead);
+
+    // 回复泡
+    for (const b of this.pickups) {
+      b.t -= dt;
+      if (b.bounce) {
+        b.x += b.vx * dt; b.y += b.vy * dt;
+        const A = G.ARENA;
+        if (b.x < A.x + b.r || b.x > A.x + A.w - b.r) b.vx = -b.vx;
+        if (b.y < A.y + b.r || b.y > A.y + A.h - b.r) b.vy = -b.vy;
+        // 顽皮泡泡撞敌
+        for (const e of this.enemies) {
+          if (G.util.dist(b.x, b.y, e.x, e.y) < b.r + e.r) {
+            e.hit(10 * (G.run.mods.synergyMul || 1), b.x, b.y, 120);
+            b.t = 0;
+            this.fx.push({ type: 'ring', x: b.x, y: b.y, t: 0.3, max: 60, color: '#9ad8c8' });
+            break;
+          }
+        }
+      }
+      if (b.t > 0 && G.util.dist(b.x, b.y, this.player.x, this.player.y) < b.r + this.player.r) {
+        this.player.hp = Math.min(this.player.maxhp, this.player.hp + b.heal);
+        if (G.has('lg3')) this.player.gainWave(20);
+        b.t = 0;
+        this.fx.push({ type: 'text', x: b.x, y: b.y - 30, t: 0.7, str: '+' + b.heal, color: '#7ddf8e', size: 26 });
+        G.audio.heal();
+      }
+    }
+    this.pickups = this.pickups.filter(b => b.t > 0);
+
+    // 敌弹（时凝 / 迟缓区 / 泡泡 / 擦弹 / 吞纳漩涡）
+    const jsAura = G.has('js5') && this.companions.find(c => c.kind === 'jingshu');
     for (const b of this.bullets) {
-      b.x += b.vx * dt; b.y += b.vy * dt;
+      let f = 1;
+      if (this.freezeT > 0) f = 0;
+      else {
+        if (G.has('so4')) {
+          for (const fd of this.fields) if (G.util.dist(b.x, b.y, fd.x, fd.y) < fd.r) { f = 0.5; break; }
+        }
+        if (f === 1 && jsAura && G.util.dist(b.x, b.y, jsAura.x, jsAura.y) < 240) f = 0.5;
+      }
+      b.x += b.vx * dt * f; b.y += b.vy * dt * f;
+      // 吞纳漩涡：吐纳时吸弹化音
+      if (G.has('br1') && this.player.channeling && G.util.dist(b.x, b.y, this.player.x, this.player.y) < 150) {
+        b.dead = true;
+        this.player.gainWave(4);
+        this.fx.push({ type: 'spark', x: b.x, y: b.y, t: 0.3, a: Math.random() * 7, sp: 100 });
+        continue;
+      }
       for (const bub of this.bubbles) {
         if (bub.hp > 0 && G.util.dist(b.x, b.y, bub.x, bub.y) < 46 + b.r) {
           bub.hp--; b.dead = true;
@@ -207,9 +413,16 @@ class Battle {
           break;
         }
       }
-      if (!b.dead && G.util.dist(b.x, b.y, this.player.x, this.player.y) < b.r + this.player.r - 6) {
+      if (b.dead) continue;
+      const pd = G.util.dist(b.x, b.y, this.player.x, this.player.y);
+      if (pd < b.r + this.player.r - 6) {
         this.player.hurt(b.dmg, b.x, b.y);
         b.dead = true;
+      } else if (G.has('sc3') && !b.grazed && pd < b.r + this.player.r + 26) {
+        // 擦浪：擦身而过化为音波
+        b.grazed = true;
+        this.player.gainWave(3);
+        this.fx.push({ type: 'text', x: this.player.x, y: this.player.y - 46, t: 0.4, str: '擦！', color: '#6ee7ff', size: 20 });
       }
       const A = G.ARENA;
       if (b.x < A.x - 40 || b.x > A.x + A.w + 40 || b.y < A.y - 40 || b.y > A.y + A.h + 40) b.dead = true;
@@ -241,7 +454,6 @@ class Battle {
     }
     ctx.restore();
 
-    // 声场
     for (const f of this.fields) {
       ctx.fillStyle = `rgba(110,231,255,${0.08 + Math.sin(G.time * 8) * 0.03})`;
       ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 7); ctx.fill();
@@ -249,7 +461,6 @@ class Battle {
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 7); ctx.stroke();
     }
-    // 出怪预警
     for (const m of this.markers) {
       const p = 1 - m.t / 0.8;
       ctx.strokeStyle = `rgba(255,107,94,${0.3 + p * 0.5})`;
@@ -257,9 +468,28 @@ class Battle {
       ctx.beginPath(); ctx.arc(m.x, m.y, 34 * (1 - p * 0.4), 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.arc(m.x, m.y, 8, 0, 7); ctx.stroke();
     }
+    // 残影炸弹（未爆）
+    for (const b of this.bombs) {
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = '#b0a0e8';
+      ctx.beginPath(); ctx.ellipse(b.x, b.y, 26, 20, 0, 0, 7); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    // 回复泡
+    for (const b of this.pickups) {
+      const bb = Math.sin(G.time * 4 + b.x) * 4;
+      ctx.strokeStyle = '#9ad8c8'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(b.x, b.y + bb, b.r, 0, 7); ctx.stroke();
+      ctx.fillStyle = 'rgba(154,216,200,0.18)';
+      ctx.beginPath(); ctx.arc(b.x, b.y + bb, b.r, 0, 7); ctx.fill();
+      ctx.fillStyle = '#9ad8c8';
+      ctx.font = G.font(18);
+      ctx.textAlign = 'center';
+      ctx.fillText('+', b.x, b.y + bb + 6);
+    }
 
     for (const e of this.enemies) e.draw(ctx);
-    // 泡泡
+    for (const c of this.companions) c.draw(ctx);
     for (const bub of this.bubbles) {
       ctx.globalAlpha = Math.min(1, bub.t) * 0.7;
       ctx.strokeStyle = '#8fd8f0'; ctx.lineWidth = 3;
@@ -268,8 +498,44 @@ class Battle {
       ctx.beginPath(); ctx.arc(bub.x, bub.y, 46, 0, 7); ctx.fill();
       ctx.globalAlpha = 1;
     }
+    // 友方弹幕
+    for (const s of this.pshots) {
+      if (s.wall) {
+        ctx.save();
+        ctx.translate(s.x, s.y);
+        ctx.rotate(Math.atan2(s.vy, s.vx) + Math.PI / 2);
+        ctx.fillStyle = s.color;
+        G.rr(ctx, -s.r, -18, s.r * 2, 36, 16); ctx.fill();
+        ctx.restore();
+      } else if (s.blade) {
+        ctx.save();
+        ctx.translate(s.x, s.y);
+        ctx.rotate(Math.atan2(s.vy, s.vx));
+        ctx.fillStyle = s.color;
+        ctx.beginPath(); ctx.ellipse(0, 0, 20, 7, 0, 0, 7); ctx.fill();
+        ctx.restore();
+      } else if (s.petal) {
+        ctx.fillStyle = s.color;
+        ctx.save();
+        ctx.translate(s.x, s.y);
+        ctx.rotate(G.time * 8);
+        ctx.beginPath(); ctx.ellipse(0, 0, 9, 5, 0, 0, 7); ctx.fill();
+        ctx.restore();
+      } else if (s.arrow) {
+        ctx.save();
+        ctx.translate(s.x, s.y);
+        ctx.rotate(Math.atan2(s.vy, s.vx));
+        ctx.fillStyle = s.color;
+        ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-8, -4); ctx.lineTo(-8, 4); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.fillStyle = s.color || '#8fd8f0';
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill();
+      }
+    }
+    // 敌弹
     for (const b of this.bullets) {
-      ctx.fillStyle = '#ff6b5e';
+      ctx.fillStyle = this.freezeT > 0 ? '#a0b8cc' : '#ff6b5e';
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
       ctx.fillStyle = 'rgba(255,200,190,0.7)';
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.45, 0, 7); ctx.fill();
@@ -284,6 +550,15 @@ class Battle {
         ctx.strokeStyle = `rgba(232,238,244,${p})`;
         ctx.lineWidth = f.big ? 14 : 8;
         ctx.beginPath(); ctx.arc(0, 0, f.big ? 120 : 100, -0.7, 0.7); ctx.stroke();
+        ctx.restore();
+      } else if (f.type === 'beam') {
+        const p = f.t / 0.3;
+        ctx.save();
+        ctx.translate(f.x, f.y); ctx.rotate(f.a);
+        ctx.fillStyle = `rgba(110,231,255,${p * 0.8})`;
+        ctx.fillRect(0, -14 * p, 1400, 28 * p);
+        ctx.fillStyle = `rgba(255,255,255,${p})`;
+        ctx.fillRect(0, -4, 1400, 8);
         ctx.restore();
       } else if (f.type === 'ring') {
         const p = 1 - f.t / (f.t0 || (f.t0 = f.t));
@@ -319,7 +594,12 @@ class Battle {
       }
     }
 
-    // 规则的世界层特效（如天道之眼）
+    // 时凝提示
+    if (this.freezeT > 0) {
+      ctx.fillStyle = `rgba(160,200,230,${this.freezeT * 0.12})`;
+      ctx.fillRect(0, 0, G.W, G.H);
+    }
+
     for (const r of G.Input.rules) if (r.draw) r.draw(ctx, this);
 
     G.HUD.draw(ctx, this);
@@ -358,6 +638,7 @@ class Battle {
       ctx.fillStyle = '#e8c170';
       ctx.fillText('帽婆婆：「用别的活法赢。」', G.W / 2, G.H / 2 + 60);
     }
+    if (this.state === 'levelup' && this.pick) this.pick.draw(ctx);
     if (this.state === 'dead') {
       ctx.fillStyle = 'rgba(10,5,5,0.75)';
       ctx.fillRect(0, 0, G.W, G.H);
@@ -391,17 +672,15 @@ class Battle {
     G.ThatKey.draw(ctx);
   }
 
-  // 键誓宣告演出：大字逐个砸出（动态排版，适配长修饰词）
+  // 键誓宣告演出（动态排版）
   drawCurseIntro(ctx) {
     const words = this.def.curseText;
     ctx.fillStyle = 'rgba(5,5,8,0.82)';
     ctx.fillRect(0, 0, G.W, G.H);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    // 动态计算每个词宽度与总宽，超宽则缩字号
     let base = 110;
     const widths = [];
     let total = 0;
-    ctx.font = G.font(base);
     for (const w of words) {
       const hot = w === this.def.curseKeyword;
       ctx.font = G.font(hot ? base * 1.25 : base);

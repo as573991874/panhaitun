@@ -13,3 +13,5 @@
     - 差那个文档打印+手印
 
 9. 时间选择：2026年8月1日上午11点
+10. 版本提交
+    - 持续编辑：https://open.3839.com/console/pc-game/14327/3000342/manage/release/offical/create

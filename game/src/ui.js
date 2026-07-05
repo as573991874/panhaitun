@@ -101,7 +101,25 @@ G.HUD = {
     if (p.wave > 0) { G.rr(ctx, 63, 87, 294 * (p.wave / 100), 14, 6); ctx.fill(); }
     ctx.fillStyle = p.wave >= 40 ? '#bdf3ff' : '#5a7684';
     ctx.font = G.font(15);
-    ctx.fillText(p.wave >= 40 ? '音波就绪【K】' : '音波', 372, 94);
+    ctx.fillText((G.has('so5') && p.wave >= 100) ? '音之枪就绪【J】' : p.wave >= 40 ? '音波就绪【K】' : '音波', 372, 94);
+
+    // --- 修为条（经验/境界）---
+    ctx.fillStyle = 'rgba(10,14,18,0.8)';
+    G.rr(ctx, 60, 112, 300, 16, 7); ctx.fill();
+    const xpP = G.util.clamp(G.run.xp / G.Powers.xpNeed(G.run.level), 0, 1);
+    ctx.fillStyle = '#b8a8e8';
+    if (xpP > 0) { G.rr(ctx, 63, 115, 294 * xpP, 10, 5); ctx.fill(); }
+    ctx.fillStyle = '#8a7ab5';
+    ctx.font = G.font(15);
+    ctx.fillText(`修为 · ${G.Powers.realm(G.run.level)}`, 372, 120);
+
+    // --- 水鳞护盾 ---
+    for (let i = 0; i < p.shield; i++) {
+      ctx.strokeStyle = '#e8d090'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(510 + i * 30, 57, 11, 0, 7); ctx.stroke();
+      ctx.fillStyle = 'rgba(232,208,144,0.25)';
+      ctx.beginPath(); ctx.arc(510 + i * 30, 57, 11, 0, 7); ctx.fill();
+    }
 
     // --- 键位状态行（主视觉）---
     const kw = 118, gap = 14, total = this.keys.length * kw + (this.keys.length - 1) * gap;
@@ -249,6 +267,30 @@ G.drawPortrait = (ctx, id, x, y, s) => {
     ctx.strokeStyle = `rgba(255,209,102,${0.3 + Math.sin(t * 3) * 0.15})`;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, 92, 0, 7); ctx.stroke();
+  } else if (c && c.g && c.g.fairy) {
+    // 灵儿：键帽小妖精（翅膀 + 大眼睛 + 呆毛）
+    ctx.translate(0, Math.sin(t * 3) * 5);
+    ctx.fillStyle = 'rgba(154,216,200,0.45)';
+    ctx.beginPath(); ctx.ellipse(-44, -8, 26, 13 + Math.sin(t * 16) * 4, -0.5, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(44, -8, 26, 13 + Math.sin(t * 16 + 3) * 4, 0.5, 0, 7); ctx.fill();
+    ctx.fillStyle = '#7ab8a8';
+    G.rr(ctx, -38, -38, 76, 72, 14); ctx.fill();
+    ctx.fillStyle = '#9ad8c8';
+    G.rr(ctx, -30, -32, 60, 52, 10); ctx.fill();
+    // 呆毛
+    ctx.strokeStyle = '#7ab8a8'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(0, -38); ctx.quadraticCurveTo(6, -54, -4, -60); ctx.stroke();
+    // 大眼睛
+    ctx.fillStyle = '#1c2733';
+    ctx.beginPath(); ctx.arc(-13, -10, 7, 0, 7); ctx.arc(13, -10, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-11, -13, 2.5, 0, 7); ctx.arc(15, -13, 2.5, 0, 7); ctx.fill();
+    // 笑
+    ctx.strokeStyle = '#1c2733'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 2, 8, 0.25, Math.PI - 0.25); ctx.stroke();
+    ctx.fillStyle = 'rgba(240,150,150,0.5)';
+    ctx.beginPath(); ctx.ellipse(-22, 2, 6, 3.5, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(22, 2, 6, 3.5, 0, 0, 7); ctx.fill();
   } else if (c && c.g) {
     // 通用修士立绘：袍子 + 脸 + 表情参数
     const g = c.g;
@@ -392,6 +434,10 @@ function drawCultivator(ctx, g, ox, oy, t) {
     ctx.beginPath(); ctx.moveTo(15, -20); ctx.quadraticCurveTo(9, -25, 3, -20); ctx.stroke();
     ctx.beginPath(); ctx.arc(-9, -14, 2.5, 0, 7); ctx.arc(9, -14, 2.5, 0, 7); ctx.fill();
     ctx.beginPath(); ctx.moveTo(-6, 2); ctx.quadraticCurveTo(2, 8, 8, 0); ctx.stroke();
+  } else if (g.expr === 'gentle') { // 温婉：垂目浅笑
+    ctx.beginPath(); ctx.moveTo(-15, -18); ctx.quadraticCurveTo(-9, -14, -3, -18); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(15, -18); ctx.quadraticCurveTo(9, -14, 3, -18); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-5, 3); ctx.quadraticCurveTo(0, 7, 5, 3); ctx.stroke();
   } else { // cold
     ctx.beginPath(); ctx.moveTo(-16, -20); ctx.lineTo(-3, -20); ctx.moveTo(16, -20); ctx.lineTo(3, -20); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-12, -13); ctx.lineTo(-5, -13); ctx.moveTo(12, -13); ctx.lineTo(5, -13); ctx.stroke();

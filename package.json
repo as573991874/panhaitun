@@ -1,6 +1,39 @@
 {
+  "name": "bieanagejian",
+  "version": "1.0.0",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never",
+    "dist:dir": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.bieanagejian.game",
+    "productName": "豚豚·别按那个键",
+    "directories": {
+      "output": "dist3"
+    },
+    "files": [
+      "game/**/*",
+      "assets/**/*",
+      "electron-main.js"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon-256.png"
+    }
+  },
   "devDependencies": {
     "canvas": "^3.2.3",
+    "electron": "^32.0.0",
+    "electron-builder": "^24.13.3",
     "sharp": "^0.35.3"
   }
 }

@@ -1,4 +1,4 @@
-// ======================== 场景：标题 / 选关 / 对话 / 三选一 / 终章 / 结局 + 流程 ========================
+﻿// ======================== 场景：标题 / 选关 / 对话 / 三选一 / 终章 / 结局 + 流程 ========================
 
 // ---------------- 流程 ----------------
 G.flow = {
@@ -8,14 +8,24 @@ G.flow = {
       mods: {
         dmgMul: 1, healMul: 1, channelTime: 1.0, dashCharges: 1, speedMul: 1,
         attackCdMul: 1, waveGainMul: 1, lifesteal: 0, shieldChance: 0,
-        dmgTakenMul: 1, smiteMul: 1, bubble: false, echoField: false,
+        dmgTakenMul: 1, smiteMul: 1, synergyMul: 1,
       },
-      tempCurses: [], pickedIds: [], pickTwo: false, act3: false, deaths: 0,
+      tempCurses: [], act3: false, deaths: 0,
+      // 修为与神通
+      xp: 0, level: 0, levelQueue: 0, powers: [],
+      met: { hongxiao: false, linger: false, jingshu: false },
+      bondPity: {},
     };
   },
   start() { this.startAt(0, true); },
   startAt(levelIdx, withPrologue) {
     this.newRun();
+    // 跳关：补发已错过的羁绊与修为（进关立刻连续突破补选神通）
+    G.run.met.hongxiao = levelIdx >= 3;
+    G.run.met.linger = levelIdx >= 4;
+    G.run.met.jingshu = levelIdx >= 5;
+    G.run.level = levelIdx;
+    G.run.levelQueue = levelIdx;
     const D = G.DATA.DIALOGS, L = G.DATA.LEVELS, order = G.DATA.LEVEL_ORDER;
     const next = () => this.next();
     this.steps = [];
@@ -30,14 +40,18 @@ G.flow = {
         this.steps.push(() => new FinaleScene(next));
         continue;
       }
-      const nextId = order[i + 1];
       this.steps.push(() => {
         if (id === 'lv8') G.run.act3 = true;
         return new DialogScene(D[id + 'Intro'], next);
       });
       this.steps.push(() => new G.Battle(L[id], () => { this.decayCurses(); next(); }));
-      this.steps.push(() => new DialogScene(D[id + 'Win'], next));
-      if (id !== 'lv9') this.steps.push(() => new CardPickScene(nextId, next));
+      this.steps.push(() => {
+        // 羁绊达成（过关剧情里认识她们，之后突破时才会出现她们的缘起神通）
+        if (id === 'lv3') G.run.met.hongxiao = true;
+        if (id === 'lv4') G.run.met.linger = true;
+        if (id === 'lv5') G.run.met.jingshu = true;
+        return new DialogScene(D[id + 'Win'], next);
+      });
     }
     this.steps.push(() => new DialogScene(D.ending, next));
     this.steps.push(() => new EndingScene());
@@ -299,149 +313,6 @@ class DialogScene {
 }
 G.DialogScene = DialogScene;
 
-// ---------------- 键契三选一（卡池抽取 + 冲突保底 + 二选一） ----------------
-class CardPickScene {
-  constructor(nextLevelId, onDone) {
-    this.onDone = onDone;
-    // 抽卡：排除已选 + 与下一关键誓死锁的卡
-    let pool = G.DATA.CARDS.filter(c =>
-      !G.run.pickedIds.includes(c.id) && !(c.conflicts || []).includes(nextLevelId));
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    const n = G.run.pickTwo ? 2 : 3;
-    if (G.run.pickTwo) G.run.pickTwo = false;
-    this.cards = pool.slice(0, Math.min(n, pool.length));
-    this.sel = 0;
-    this.t = 0;
-    this.confirmed = -1;
-    this.confT = 0;
-  }
-  cardRect(i) {
-    const cw = 440, ch = 590, gap = 60;
-    const n = this.cards.length;
-    const total = n * cw + (n - 1) * gap;
-    return { x: G.W / 2 - total / 2 + i * (cw + gap), y: 300, w: cw, h: ch };
-  }
-  update(dt) {
-    this.t += dt;
-    G.ThatKey.update(dt);
-    if (!this.cards.length) { this.onDone(); return; }
-    if (this.confirmed >= 0) {
-      this.confT -= dt;
-      if (this.confT <= 0) this.onDone();
-      return;
-    }
-    const n = this.cards.length;
-    if (G.Input.just.left) { this.sel = (this.sel + n - 1) % n; G.audio.select(); }
-    if (G.Input.just.right) { this.sel = (this.sel + 1) % n; G.audio.select(); }
-    const m = G.Input.mouse;
-    for (let i = 0; i < n; i++) {
-      const r = this.cardRect(i);
-      if (m.x > r.x && m.x < r.x + r.w && m.y > r.y && m.y < r.y + r.h) {
-        this.sel = i;
-        if (m.just) this.confirm();
-      }
-    }
-    if (G.Input.just.attack) this.confirm();
-  }
-  confirm() {
-    const card = this.cards[this.sel];
-    card.apply();
-    G.run.pickedIds.push(card.id);
-    if (card.curse) {
-      const rule = G.Curses.create(card.curse);
-      rule.levelsLeft = card.dur;
-      G.run.tempCurses.push({ rule, left: card.dur, cardName: card.name });
-    }
-    this.confirmed = this.sel;
-    this.confT = 1.2;
-    G.audio.confirm();
-  }
-  draw(ctx) {
-    const g = ctx.createLinearGradient(0, 0, 0, G.H);
-    g.addColorStop(0, '#0e0b14'); g.addColorStop(1, '#181226');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, G.W, G.H);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#e8c170';
-    ctx.font = G.font(56);
-    ctx.fillText(this.cards.length === 2 ? '键 契 · 二 选 一' : '键 契 · 三 选 一', G.W / 2, 140);
-    ctx.fillStyle = '#8a97a5';
-    ctx.font = G.font(24);
-    ctx.fillText('帽婆婆：「每一份神通，都有代价。挑吧。」', G.W / 2, 200);
-
-    for (let i = 0; i < this.cards.length; i++) {
-      const r = this.cardRect(i);
-      const card = this.cards[i];
-      const hot = i === this.sel;
-      const done = this.confirmed === i;
-      ctx.save();
-      ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
-      const sc = done ? 1.08 + Math.sin(this.t * 20) * 0.02 : hot ? 1.05 : 1;
-      ctx.scale(sc, sc);
-      ctx.translate(-(r.x + r.w / 2), -(r.y + r.h / 2));
-      if (this.confirmed >= 0 && !done) ctx.globalAlpha = 0.3;
-      ctx.fillStyle = hot ? '#1e2836' : '#161d28';
-      G.rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
-      ctx.strokeStyle = done ? '#7ddf8e' : hot ? '#e8c170' : '#33404f';
-      ctx.lineWidth = hot ? 4 : 2;
-      G.rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
-      ctx.fillStyle = '#2a3648';
-      G.rr(ctx, r.x + r.w / 2 - 55, r.y + 42, 110, 84, 14); ctx.fill();
-      ctx.fillStyle = '#e8eef4';
-      ctx.font = G.font(40);
-      ctx.textAlign = 'center';
-      ctx.fillText(card.key, r.x + r.w / 2, r.y + 100);
-      ctx.fillStyle = '#e8c170';
-      ctx.font = G.font(42);
-      ctx.fillText(card.name, r.x + r.w / 2, r.y + 196);
-      ctx.fillStyle = '#7ddf8e';
-      ctx.font = G.font(27);
-      ctx.fillText('◆ ' + card.ability, r.x + r.w / 2, r.y + 262);
-      ctx.strokeStyle = '#33404f'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(r.x + 50, r.y + 306); ctx.lineTo(r.x + r.w - 50, r.y + 306); ctx.stroke();
-      ctx.fillStyle = '#6a5560';
-      ctx.font = G.font(20);
-      ctx.fillText('—— 代价 · 残誓' + (card.dur <= 10 ? `（${card.dur} 关）` : '') + ' ——', r.x + r.w / 2, r.y + 348);
-      // 残誓正句（严格句式，红字加粗）
-      ctx.fillStyle = '#ff6b5e';
-      ctx.font = G.font(30);
-      const tmpl = '「' + card.restrict + '」';
-      let lineStr = '', ly = r.y + 402;
-      for (const ch of tmpl) {
-        lineStr += ch;
-        if (ctx.measureText(lineStr).width > r.w - 70) { ctx.fillText(lineStr, r.x + r.w / 2, ly); lineStr = ''; ly += 42; }
-      }
-      if (lineStr) { ctx.fillText(lineStr, r.x + r.w / 2, ly); ly += 42; }
-      // 注解
-      ctx.fillStyle = '#a98080';
-      ctx.font = G.font(21);
-      let noteStr = '', ny = ly + 8;
-      for (const ch of card.restrictNote) {
-        noteStr += ch;
-        if (ctx.measureText(noteStr).width > r.w - 80) { ctx.fillText(noteStr, r.x + r.w / 2, ny); noteStr = ''; ny += 30; }
-      }
-      if (noteStr) ctx.fillText(noteStr, r.x + r.w / 2, ny);
-      if (done) {
-        ctx.fillStyle = '#7ddf8e';
-        ctx.font = G.font(34);
-        ctx.fillText('✓ 已缔结', r.x + r.w / 2, r.y + r.h - 36);
-      }
-      ctx.restore();
-      ctx.globalAlpha = 1;
-    }
-    if (this.confirmed < 0) {
-      ctx.fillStyle = '#5a7684';
-      ctx.font = G.font(24);
-      ctx.textAlign = 'center';
-      ctx.fillText('【A/D】选择　【J】缔结键契', G.W / 2, 990);
-    }
-    G.ThatKey.draw(ctx);
-  }
-}
-G.CardPickScene = CardPickScene;
-
 // ---------------- 终章：别按那个键 ----------------
 class FinaleScene {
   constructor(onDone) {
@@ -451,6 +322,9 @@ class FinaleScene {
     this.bullets = [];
     this.fx = [];
     this.bubbles = []; this.fields = [];
+    this.pshots = []; this.bombs = []; this.delayedBooms = []; this.chains = []; this.pickups = [];
+    this.companions = [];
+    this.freezeT = 0; this.lg2cd = 0;
     this.t = 0;
     this.phase = 'fight';   // fight → truth → prompt → confirm → flash
     this.sealed = [];
@@ -598,6 +472,19 @@ class FinaleScene {
     this.bullets = this.bullets.filter(b => !b.dead);
     for (const bub of this.bubbles) bub.t -= dt;
     this.bubbles = this.bubbles.filter(b => b.t > 0 && b.hp > 0);
+    // 玩家神通残留物（终章无敌人，只做视觉流动与清理）
+    for (const s of this.pshots) {
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      s.travel = (s.travel || 0) + Math.hypot(s.vx, s.vy) * dt;
+      if (s.travel > (s.maxTravel || 800)) s.dead = true;
+    }
+    this.pshots = this.pshots.filter(s => !s.dead);
+    for (const b of this.bombs) {
+      b.t -= dt;
+      if (b.t <= 0) this.fx.push({ type: 'ring', x: b.x, y: b.y, t: 0.35, max: b.r, color: '#b0a0e8' });
+    }
+    this.bombs = this.bombs.filter(b => b.t > 0);
+    this.delayedBooms = []; this.chains = []; this.pickups = [];
     for (const f of this.fx) f.t -= dt;
     this.fx = this.fx.filter(f => f.t > 0);
   }
@@ -628,6 +515,10 @@ class FinaleScene {
     for (const b of this.bullets) {
       ctx.fillStyle = '#ffd166';
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+    }
+    for (const s of this.pshots) {
+      ctx.fillStyle = s.color || '#8fd8f0';
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r || 8, 0, 7); ctx.fill();
     }
     this.player.draw(ctx);
     for (const f of this.fx) {
@@ -742,7 +633,7 @@ class EndingScene {
     ctx.fillText(`本次旅程你共手贱按了那个键 ${n} 次（结局那两次，不算手贱）`, G.W / 2, 810);
     if (G.run) {
       ctx.fillStyle = '#5a7684';
-      ctx.fillText(`阵亡 ${G.run.deaths || 0} 次 · 缔结键契 ${G.run.pickedIds.length} 张`, G.W / 2, 850);
+      ctx.fillText(`阵亡 ${G.run.deaths || 0} 次 · 境界【${G.Powers.realm(G.run.level)}】 · 缔结神通 ${G.run.powers.length} 道`, G.W / 2, 850);
     }
     if (this.t > 2 && Math.sin(this.t * 4) > 0) {
       ctx.fillStyle = '#e8c170';

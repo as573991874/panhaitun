@@ -3,7 +3,10 @@
     "allow": [
       "PowerShell(node -v)",
       "PowerShell(npm -v)",
-      "PowerShell(npx --version)"
+      "PowerShell(npx --version)",
+      "PowerShell($f = 'E:\\\\别按那个键\\\\game\\\\src\\\\scenes.js'; $lines = Get-Content $f -Encoding UTF8; $new = $lines[0..314] + $lines[458..\\($lines.Count-1\\)]; Set-Content $f -Value $new -Encoding UTF8; Write-Output \\(\"removed CardPickScene, now \" + $new.Count + \" lines\"\\))",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"ProcessId=22344\")",
+      "PowerShell(Stop-Process -Id 22344 -Force -Confirm:$false)"
     ]
   }
 }
