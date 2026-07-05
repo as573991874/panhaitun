@@ -5,6 +5,7 @@ G.ThatKey = {
   x: 1790, y: 985, r: 46,
   bubbleT: 0, bubbleText: '',
   wiggle: 0,
+  override: null,   // 终章可接管台词
   get count() { return parseInt(localStorage.getItem('btk_thatkey') || '0'); },
   set count(v) { localStorage.setItem('btk_thatkey', v); },
 
@@ -17,7 +18,9 @@ G.ThatKey = {
   },
   press() {
     const q = G.DATA.THATKEY_QUOTES;
-    this.bubbleText = q[Math.min(this.count, q.length - 1)];
+    if (this.override) this.bubbleText = this.override;
+    else if (G.run && G.run.act3 && this.count >= 6) this.bubbleText = q[7];
+    else this.bubbleText = q[Math.min(this.count, 6)];
     this.count = this.count + 1;
     this.bubbleT = 3.5;
     this.wiggle = 0.5;
@@ -31,10 +34,8 @@ G.ThatKey = {
     ctx.save();
     ctx.translate(this.x + wx, this.y);
     ctx.scale(breath, breath);
-    // 底座阴影
     ctx.fillStyle = 'rgba(120,20,20,0.5)';
     G.rr(ctx, -this.r, -this.r + 8, this.r * 2, this.r * 2, 14); ctx.fill();
-    // 红键
     const glow = 0.5 + Math.sin(t * 2) * 0.3;
     ctx.shadowColor = `rgba(255,60,50,${glow})`;
     ctx.shadowBlur = 30;
@@ -43,16 +44,13 @@ G.ThatKey = {
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#e04545';
     G.rr(ctx, -this.r + 7, -this.r + 6, this.r * 2 - 14, this.r * 2 - 20, 10); ctx.fill();
-    // 无字：一道微光
     ctx.fillStyle = `rgba(255,200,190,${0.25 + glow * 0.2})`;
     ctx.beginPath(); ctx.ellipse(-10, -14, 12, 5, -0.6, 0, 7); ctx.fill();
     ctx.restore();
-    // 提示小字
     ctx.fillStyle = 'rgba(200,120,110,0.65)';
     ctx.font = G.font(17);
     ctx.textAlign = 'center';
     ctx.fillText('别按那个键', this.x + wx, this.y + this.r + 26);
-    // 帽婆婆的骂人气泡
     if (this.bubbleT > 0) {
       const a = Math.min(1, this.bubbleT / 0.4);
       ctx.globalAlpha = a;
@@ -110,21 +108,32 @@ G.HUD = {
     let kx = G.W / 2 - total / 2;
     for (const k of this.keys) {
       const lockRule = G.Input.lockedBy(k.action);
+      // 规则可给键帽附加状态：red / warn，及功能名覆盖（键位漂移）
+      let state = null, label = k.name;
+      for (const r of G.Input.rules) {
+        if (r.keyState) { const s = r.keyState(k.action); if (s) state = s; }
+        if (r.labelFor) { const l = r.labelFor(k.action); if (l) label = l; }
+      }
       const y = 36;
-      ctx.fillStyle = lockRule ? 'rgba(60,20,20,0.9)' : 'rgba(16,22,28,0.85)';
+      let bg = 'rgba(16,22,28,0.85)', border = '#3a4a5a';
+      if (lockRule) { bg = 'rgba(60,20,20,0.9)'; border = '#c22f2f'; }
+      else if (state === 'red') { bg = 'rgba(120,25,20,0.95)'; border = '#ff3b30'; }
+      else if (state === 'warn') { bg = Math.sin(G.time * 12) > 0 ? 'rgba(90,80,70,0.9)' : 'rgba(16,22,28,0.85)'; border = '#e8e0d0'; }
+      ctx.fillStyle = bg;
       G.rr(ctx, kx, y, kw, 64, 10); ctx.fill();
-      ctx.strokeStyle = lockRule ? '#c22f2f' : '#3a4a5a';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = border;
+      ctx.lineWidth = state === 'red' ? 4 : 2;
+      if (state === 'red') { ctx.shadowColor = 'rgba(255,60,40,0.8)'; ctx.shadowBlur = 18; }
       G.rr(ctx, kx, y, kw, 64, 10); ctx.stroke();
+      ctx.shadowBlur = 0;
       ctx.textAlign = 'center';
-      ctx.fillStyle = lockRule ? '#7a4a4a' : '#e8eef4';
+      ctx.fillStyle = lockRule ? '#7a4a4a' : state === 'red' ? '#ffb0a8' : '#e8eef4';
       ctx.font = G.font(24);
       ctx.fillText(k.key, kx + kw / 2, y + 26);
       ctx.fillStyle = lockRule ? '#6a4040' : '#8a97a5';
       ctx.font = G.font(15);
-      ctx.fillText(k.name, kx + kw / 2, y + 50);
+      ctx.fillText(label, kx + kw / 2, y + 50);
       if (lockRule) {
-        // 锁链 + 锁
         ctx.strokeStyle = '#d4a017'; ctx.lineWidth = 4;
         ctx.beginPath(); ctx.moveTo(kx - 4, y + 8); ctx.lineTo(kx + kw + 4, y + 56); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(kx + kw + 4, y + 8); ctx.lineTo(kx - 4, y + 56); ctx.stroke();
@@ -155,27 +164,29 @@ G.HUD = {
       cy += 32;
     }
 
-    // --- Boss 血条 ---
-    const boss = battle.enemies.find(e => e.isBoss);
-    if (boss) {
+    // --- Boss 血条（支持多个）---
+    const bosses = battle.enemies.filter(e => e.isBoss);
+    bosses.forEach((boss, i) => {
+      const by = G.H - 74 - i * 50;
       ctx.fillStyle = 'rgba(10,14,18,0.85)';
-      G.rr(ctx, G.W / 2 - 400, G.H - 74, 800, 40, 10); ctx.fill();
+      G.rr(ctx, G.W / 2 - 400, by, 800, 40, 10); ctx.fill();
       const bp = Math.max(0, boss.hp / boss.maxhp);
       ctx.fillStyle = '#d08770';
-      if (bp > 0) { G.rr(ctx, G.W / 2 - 395, G.H - 69, 790 * bp, 30, 7); ctx.fill(); }
+      if (bp > 0) { G.rr(ctx, G.W / 2 - 395, by + 5, 790 * bp, 30, 7); ctx.fill(); }
       ctx.fillStyle = '#e8eef4';
       ctx.font = G.font(20);
       ctx.textAlign = 'center';
-      ctx.fillText(boss.name, G.W / 2, G.H - 54);
-    }
+      ctx.fillText(boss.name, G.W / 2, by + 20);
+    });
 
     // --- 波次指示 ---
-    if (!boss && battle.state === 'fight') {
+    if (!bosses.length && battle.state === 'fight') {
       ctx.fillStyle = '#5a7684';
       ctx.font = G.font(19);
       ctx.textAlign = 'center';
       ctx.fillText(`第 ${battle.wave + 1}/${battle.def.waves.length} 波${battle.def.boss ? ' + 关主' : ''}`, G.W / 2, 130);
     }
+    ctx.textBaseline = 'alphabetic';
   },
 };
 
@@ -185,6 +196,7 @@ G.drawPortrait = (ctx, id, x, y, s) => {
   ctx.translate(x, y);
   ctx.scale(s, s);
   const t = G.time;
+  const c = G.DATA.CHARS[id];
   if (id === 'tuntun') {
     ctx.fillStyle = '#8fb8d8';
     ctx.beginPath(); ctx.ellipse(0, 6 + Math.sin(t * 3) * 2, 60, 48, 0, 0, 7); ctx.fill();
@@ -199,19 +211,15 @@ G.drawPortrait = (ctx, id, x, y, s) => {
     ctx.fillStyle = 'rgba(240,150,150,0.5)';
     ctx.beginPath(); ctx.ellipse(42, 6, 9, 5, 0, 0, 7); ctx.fill();
   } else if (id === 'granny') {
-    // 一颗长了脸的旧键帽
     ctx.fillStyle = '#8a7a55';
     G.rr(ctx, -52, -46, 104, 96, 16); ctx.fill();
     ctx.fillStyle = '#a89468';
     G.rr(ctx, -42, -38, 84, 70, 12); ctx.fill();
-    // 皱纹 + 眯眯眼
     ctx.strokeStyle = '#5a4d38'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(-26, -12); ctx.quadraticCurveTo(-16, -18, -6, -12); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(6, -12); ctx.quadraticCurveTo(16, -18, 26, -12); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-30, -28); ctx.lineTo(-4, -30); ctx.moveTo(30, -28); ctx.lineTo(4, -30); ctx.stroke();
-    // 嘴
     ctx.beginPath(); ctx.arc(0, 8, 10, 0.3, Math.PI - 0.3); ctx.stroke();
-    // 发簪
     ctx.strokeStyle = '#e8c170'; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(-40, -52); ctx.lineTo(20, -64); ctx.stroke();
     ctx.fillStyle = '#e8c170';
@@ -227,6 +235,71 @@ G.drawPortrait = (ctx, id, x, y, s) => {
     ctx.beginPath(); ctx.arc(-10, -14, 3.5, 0, 7); ctx.arc(10, -14, 3.5, 0, 7); ctx.fill();
     ctx.strokeStyle = '#3a2018';
     ctx.beginPath(); ctx.arc(0, 2, 8, 0.2, Math.PI - 0.2, true); ctx.stroke();
+  } else if (c && c.g && c.g.eye) {
+    // 天道：一只悬空巨眼
+    ctx.fillStyle = '#0a0a10';
+    ctx.beginPath(); ctx.ellipse(0, 0, 70, 42 + Math.sin(t * 1.5) * 4, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.ellipse(0, 0, 70, 42 + Math.sin(t * 1.5) * 4, 0, 0, 7); ctx.stroke();
+    ctx.fillStyle = '#ffd166';
+    ctx.beginPath(); ctx.arc(0, 0, 20, 0, 7); ctx.fill();
+    ctx.fillStyle = '#0a0a10';
+    ctx.beginPath(); ctx.arc(0, 0, 9, 0, 7); ctx.fill();
+    // 光环
+    ctx.strokeStyle = `rgba(255,209,102,${0.3 + Math.sin(t * 3) * 0.15})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 92, 0, 7); ctx.stroke();
+  } else if (c && c.g) {
+    // 通用修士立绘：袍子 + 脸 + 表情参数
+    const g = c.g;
+    const sc = g.big || 1;
+    ctx.scale(sc, sc);
+    if (g.twin) { drawCultivator(ctx, g, -34, 0, t); drawCultivator(ctx, g, 34, 0, t); }
+    else drawCultivator(ctx, g, 0, 0, t);
   }
   ctx.restore();
 };
+
+function drawCultivator(ctx, g, ox, oy, t) {
+  ctx.save();
+  ctx.translate(ox, oy);
+  // 袍
+  ctx.fillStyle = g.robe;
+  ctx.beginPath(); ctx.moveTo(-40, 50); ctx.quadraticCurveTo(-46, -28, 0, -48); ctx.quadraticCurveTo(46, -28, 40, 50); ctx.closePath(); ctx.fill();
+  // 头
+  ctx.fillStyle = g.skin;
+  ctx.beginPath(); ctx.arc(0, -14, 27, 0, 7); ctx.fill();
+  // 冠 / 发 / 须
+  if (g.crown) {
+    ctx.fillStyle = '#d4a017';
+    ctx.beginPath(); ctx.moveTo(-18, -38); ctx.lineTo(18, -38); ctx.lineTo(12, -52); ctx.lineTo(0, -42); ctx.lineTo(-12, -52); ctx.closePath(); ctx.fill();
+  }
+  if (g.hair) {
+    ctx.fillStyle = '#2a2030';
+    ctx.beginPath(); ctx.arc(0, -22, 26, Math.PI, 0); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-24, -6, 7, 20, 0.2, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(24, -6, 7, 20, -0.2, 0, 7); ctx.fill();
+  }
+  if (g.beard) {
+    ctx.fillStyle = '#c8c0b0';
+    ctx.beginPath(); ctx.moveTo(-12, 0); ctx.quadraticCurveTo(0, 34 + Math.sin(t * 2) * 2, 12, 0); ctx.closePath(); ctx.fill();
+  }
+  // 表情
+  ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = 3.5;
+  ctx.fillStyle = '#2a1a10';
+  if (g.expr === 'angry') {
+    ctx.beginPath(); ctx.moveTo(-16, -24); ctx.lineTo(-5, -18); ctx.moveTo(16, -24); ctx.lineTo(5, -18); ctx.stroke();
+    ctx.beginPath(); ctx.arc(-9, -13, 3, 0, 7); ctx.arc(9, -13, 3, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 4, 7, 0.2, Math.PI - 0.2, true); ctx.stroke();
+  } else if (g.expr === 'smug') {
+    ctx.beginPath(); ctx.moveTo(-15, -20); ctx.quadraticCurveTo(-9, -25, -3, -20); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(15, -20); ctx.quadraticCurveTo(9, -25, 3, -20); ctx.stroke();
+    ctx.beginPath(); ctx.arc(-9, -14, 2.5, 0, 7); ctx.arc(9, -14, 2.5, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-6, 2); ctx.quadraticCurveTo(2, 8, 8, 0); ctx.stroke();
+  } else { // cold
+    ctx.beginPath(); ctx.moveTo(-16, -20); ctx.lineTo(-3, -20); ctx.moveTo(16, -20); ctx.lineTo(3, -20); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-12, -13); ctx.lineTo(-5, -13); ctx.moveTo(12, -13); ctx.lineTo(5, -13); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-6, 3); ctx.lineTo(6, 3); ctx.stroke();
+  }
+  ctx.restore();
+}

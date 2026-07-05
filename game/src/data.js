@@ -159,14 +159,13 @@ G.DATA.DIALOGS = {
   ] },
 
   ending: { bg: 'void', lines: [
-    { who: 'narrator', text: '雷声，停了。' },
-    { who: 'granny', text: '……小豚。老身骗了你一路。那个键，不是灾祸。' },
-    { who: 'granny', text: '这个世界，是天键盘里运行的一局棋。而天道，是不许棋局结束的看守。' },
-    { who: 'granny', text: '那颗键，是「确认」。按下去，这一局才算数——你走过的每一步，才真的存在过。' },
-    { who: 'granny', text: '祂不许任何人确认。所以众生的努力，一次次轮回，一次次归零。' },
-    { who: 'tuntun', text: '所以我挨的打、扫的地、赢的每一场……' },
-    { who: 'granny', text: '都会算数。去吧，小豚。这一次——' },
-    { who: 'granny', text: '按下那个键。', big: true },
+    { who: 'narrator', text: '雷声，停了。天上那只眼睛，像退潮一样，散了。' },
+    { who: 'tuntun', text: '婆婆……我们赢了？' },
+    { who: 'granny', text: '赢了。这一局，算数了。' },
+    { who: 'granny', text: '你挨的每一下，扫的每一帚，赢的每一场——都，算，数。' },
+    { who: 'tuntun', text: '……那接下来做什么？' },
+    { who: 'granny', text: '接下来？哈！接下来去键台——' },
+    { who: 'tuntun', text: '堂堂正正，比一场！' },
   ] },
 };
 

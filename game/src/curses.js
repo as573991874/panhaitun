@@ -72,12 +72,13 @@ G.Curses = {
     }),
 
     // 四关：别松开那个「纳」键（L 必须全程按住）
+    // 注意：CurseRule 构造用 Object.assign，getter 会被拍平，动态值须在 update 里刷新
     holdHeal: () => new CurseRule({
       id: 'holdHeal', isLevel: true,
       short: '「别·松开·那个·纳·键」（按住 L 结印）',
-      graceT: 4, disableHeal: true,
-      get speedMul() { return G.Input.down.heal ? 0.7 : 1; },
+      graceT: 4, disableHeal: true, speedMul: 1,
       update(dt) {
+        this.speedMul = G.Input.down.heal ? 0.7 : 1;
         if (G.Input.down.heal) { this.graceT = 0.6; return; }
         this.graceT -= dt;
         if (this.graceT <= 0) {
