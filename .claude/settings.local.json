@@ -7,7 +7,8 @@
       "PowerShell($f = 'E:\\\\别按那个键\\\\game\\\\src\\\\scenes.js'; $lines = Get-Content $f -Encoding UTF8; $new = $lines[0..314] + $lines[458..\\($lines.Count-1\\)]; Set-Content $f -Value $new -Encoding UTF8; Write-Output \\(\"removed CardPickScene, now \" + $new.Count + \" lines\"\\))",
       "PowerShell(Get-CimInstance Win32_Process -Filter \"ProcessId=22344\")",
       "PowerShell(Stop-Process -Id 22344 -Force -Confirm:$false)",
-      "PowerShell(try { Stop-Process -Id 22344 -Force -ErrorAction Stop; 'killed 22344' } catch { $_.Exception.Message })"
+      "PowerShell(try { Stop-Process -Id 22344 -Force -ErrorAction Stop; 'killed 22344' } catch { $_.Exception.Message })",
+      "PowerShell(Set-Location 'E:\\\\别按那个键'; git lfs ls-files; Write-Output '--- gitattributes ---'; if \\(Test-Path .gitattributes\\) { Get-Content .gitattributes } else { 'no .gitattributes' }; Write-Output '--- unpushed ---'; git log origin/main..HEAD --oneline 2>$null | Select-Object -First 10; Write-Output '--- big files in repo ---'; git ls-files | ForEach-Object { $f = Get-Item $_ -ErrorAction SilentlyContinue; if \\($f -and $f.Length -gt 20MB\\) { '{0:N1} MB  {1}' -f \\($f.Length/1MB\\), $_ } })"
     ]
   }
 }
