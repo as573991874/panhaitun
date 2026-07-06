@@ -301,7 +301,10 @@ class Player {
     this.wave = 0;
   }
 
-  gainWave(n) { this.wave = Math.min(100, this.wave + n * (this.mods.waveGainMul || 1)); }
+  gainWave(n) {
+    const room = G.currentBattle ? (G.currentBattle.roomWaveMul || 1) : 1; // 灵潮词缀
+    this.wave = Math.min(100, this.wave + n * (this.mods.waveGainMul || 1) * room);
+  }
 
   hurt(dmg, sx, sy) {
     if (this.iframes > 0 || this.dashing || this.hp <= 0) return;

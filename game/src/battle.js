@@ -22,7 +22,9 @@ class Battle {
     this.enemyHpMul = 1;
     this.freezeT = 0;     // 刹那时凝
     this.lg2cd = 0;       // 灵光护主冷却
-    this.state = def.curse ? 'curse' : 'fight';
+    this.music = 'battle';
+    // 键誓宣告只在本关第一间房演出（rogue 房间共享关卡键誓）
+    this.state = (def.curse && !def.skipCurseIntro) ? 'curse' : 'fight';
     this.stateT = 0;
     this.tipT = 0;
     this.tipShown = false;
@@ -43,6 +45,16 @@ class Battle {
     G.events.clear('punish');
     G.events.on('punish', info => this.onPunish(info));
     this.syncCompanions();
+    // 关内伤势随行（rogue：一关之内不回满）
+    if (G.run.hp != null) this.player.hp = Math.max(1, Math.min(this.player.maxhp, G.run.hp));
+    // 房间词缀
+    const rm = this.def.roomMods || {};
+    this.bulletSpeedMul = rm.bulletSpeed || 1;
+    this.enemySpeedMul = rm.enemySpeed || 1;
+    this.roomWaveMul = rm.waveGain || 1;
+    this.xpMul = rm.xpMul || 1;
+    this.smiteBonus = rm.smite || 1;
+    if (rm.hpMul) this.enemyHpMul *= rm.hpMul;
     // 关后抉择的开局馈赠 / 挑战（用完即弃）
     const nm = G.run.nextBattleMods;
     if (nm) {
@@ -51,7 +63,7 @@ class Battle {
       if (nm.xp) this.addXp(nm.xp);
       if (nm.enemyHpMul) this.enemyHpMul *= nm.enemyHpMul;
       if (nm.extra) this.bonusExtra = nm.extra;
-      if (nm.smiteMul) this.smiteBonus = nm.smiteMul;
+      if (nm.smiteMul) this.smiteBonus *= nm.smiteMul;
       G.run.nextBattleMods = null;
     }
     if (this.state === 'fight') this.nextWave();
@@ -83,7 +95,7 @@ class Battle {
 
   // ---------- 修为 ----------
   addXp(n) {
-    G.run.xp += n;
+    G.run.xp += n * (this.xpMul || 1);
     while (G.run.xp >= G.Powers.xpNeed(G.run.level)) {
       G.run.xp -= G.Powers.xpNeed(G.run.level);
       G.run.level++;
@@ -177,6 +189,13 @@ class Battle {
   startWin() {
     this.state = 'win';
     this.winT = 2.0;
+    // 伤势随行到下一间房
+    G.run.hp = this.player.hp;
+    // 险道奖励：一次境界突破（下一场战斗开打时触发）
+    if (this.def.reward === 'breakthrough') {
+      G.run.levelQueue++;
+      this.fx.push({ type: 'text', x: this.player.x, y: this.player.y - 90, t: 1.6, str: '险道机缘：境界将破！', color: '#e8c170', size: 32 });
+    }
     G.Input.combatActive = false;
     G.audio.win();
   }
@@ -255,10 +274,10 @@ class Battle {
     }
     this.markers = this.markers.filter(m => m.t > 0);
 
-    // 敌人（眩晕跳过 / 迟缓减速）
+    // 敌人（眩晕跳过 / 迟缓减速 / 词缀加速）
     for (const e of this.enemies) {
       if (e.stunT > 0) { e.stunT -= dt; continue; }
-      const f = e.slowT > 0 ? 0.5 : 1;
+      const f = (e.slowT > 0 ? 0.5 : 1) * (this.enemySpeedMul || 1);
       if (e.slowT > 0) e.slowT -= dt;
       e.update(dt * f, this);
     }
@@ -407,13 +426,13 @@ class Battle {
     // 敌弹（时凝 / 迟缓区 / 泡泡 / 擦弹 / 吞纳漩涡）
     const jsAura = G.has('js5') && this.companions.find(c => c.kind === 'jingshu');
     for (const b of this.bullets) {
-      let f = 1;
+      let f = this.bulletSpeedMul || 1;
       if (this.freezeT > 0) f = 0;
       else {
         if (G.has('so4')) {
-          for (const fd of this.fields) if (G.util.dist(b.x, b.y, fd.x, fd.y) < fd.r) { f = 0.5; break; }
+          for (const fd of this.fields) if (G.util.dist(b.x, b.y, fd.x, fd.y) < fd.r) { f *= 0.5; break; }
         }
-        if (f === 1 && jsAura && G.util.dist(b.x, b.y, jsAura.x, jsAura.y) < 240) f = 0.5;
+        if (jsAura && G.util.dist(b.x, b.y, jsAura.x, jsAura.y) < 240) f *= 0.5;
       }
       b.x += b.vx * dt * f; b.y += b.vy * dt * f;
       // 吞纳漩涡：吐纳时吸弹化音

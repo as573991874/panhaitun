@@ -19,6 +19,9 @@ G.flow = {
       heart: 0, blade: 0,
       nextBattleMods: null,
       ending: 'confirm',
+      // rogue：关内伤势随行 + 机缘去重
+      hp: null,
+      seenEvents: [],
     };
   },
   start() { this.startAt(0, true); },
@@ -40,15 +43,23 @@ G.flow = {
     }
     for (let i = levelIdx; i < order.length; i++) {
       const id = order[i];
+      const idx = i;
       if (id === 'lv10') {
         this.steps.push(() => new FinaleScene(next));
         continue;
       }
       this.steps.push(() => {
         if (id === 'lv8') G.run.act3 = true;
+        G.run.hp = null;             // 新的一关：伤势养好了
+        G.run.curseIntroDone = false; // 键誓宣告待演出
         return new DialogScene(D[id + 'Intro'], next);
       });
-      this.steps.push(() => new G.Battle(L[id], () => { this.decayCurses(); next(); }));
+      // rogue 路程：岔路→房间 ×2，再见关主
+      this.steps.push(() => new G.RouteScene(id, idx, 1, next));
+      this.steps.push(() => new G.RouteScene(id, idx, 2, next));
+      this.steps.push(() => new G.Battle(
+        Object.assign(G.Rogue.bossDef(L[id]), { skipCurseIntro: G.run.curseIntroDone }),
+        () => { this.decayCurses(); next(); }));
       this.steps.push(() => {
         // 羁绊达成（过关剧情里认识她们，之后突破时才会出现她们的缘起神通）
         if (id === 'lv3') G.run.met.hongxiao = true;
@@ -126,7 +137,7 @@ class TitleScene {
     ctx.fillStyle = '#4a5866';
     ctx.font = G.font(20);
     ctx.fillText('WASD 移动 · J 尾拍 · K 音爆 · L 吐纳 · 空格 豚跃', G.W / 2, 850);
-    ctx.fillText('【K】选关', G.W / 2, 890);
+    ctx.fillText('【K】选关　【M】音乐开关', G.W / 2, 890);
     ctx.fillText('全十关 · 剧情约 2 小时', G.W / 2, 1040);
     G.ThatKey.draw(ctx);
     G.AgeRating.draw(ctx);
@@ -455,6 +466,7 @@ class FinaleScene {
     this.pshots = []; this.bombs = []; this.delayedBooms = []; this.chains = []; this.pickups = [];
     this.companions = [];
     this.freezeT = 0; this.lg2cd = 0;
+    this.music = 'battle';
     this.t = 0;
     this.phase = 'fight';   // fight → truth → prompt → confirm → flash
     this.sealed = [];

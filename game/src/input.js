@@ -6,6 +6,7 @@ G.Input = {
     KeyW: 'up', KeyA: 'left', KeyS: 'down', KeyD: 'right',
     KeyJ: 'attack', KeyK: 'skill', KeyL: 'heal', Space: 'dash',
     Enter: 'thatkey', NumpadEnter: 'thatkey',
+    KeyM: 'mute',
   },
   down: {},          // 逻辑动作按住状态
   just: {},          // 本帧刚按下

@@ -23,6 +23,7 @@
     if (G.scene && G.scene.exit) G.scene.exit();
     G.scene = s;
     if (s.enter) s.enter();
+    G.music.set(s.music || 'story'); // 剧情/战斗 BGM 随场景切换
   };
 
   G.setScene(new G.TitleScene());
@@ -60,6 +61,7 @@
       G.time += STEP;
       G.shake.t = Math.max(0, G.shake.t - STEP);
       if (G.shake.t <= 0) G.shake.mag = 0;
+      if (G.Input.just.mute) G.music.toggle();
       G.scene.update(STEP);
       G.Input.endFrame();
     }
