@@ -43,6 +43,17 @@ class Battle {
     G.events.clear('punish');
     G.events.on('punish', info => this.onPunish(info));
     this.syncCompanions();
+    // 关后抉择的开局馈赠 / 挑战（用完即弃）
+    const nm = G.run.nextBattleMods;
+    if (nm) {
+      if (nm.shield) this.player.shield = nm.shield;
+      if (nm.wave) this.player.wave = Math.min(100, nm.wave);
+      if (nm.xp) this.addXp(nm.xp);
+      if (nm.enemyHpMul) this.enemyHpMul *= nm.enemyHpMul;
+      if (nm.extra) this.bonusExtra = nm.extra;
+      if (nm.smiteMul) this.smiteBonus = nm.smiteMul;
+      G.run.nextBattleMods = null;
+    }
     if (this.state === 'fight') this.nextWave();
   }
   exit() {
@@ -95,6 +106,11 @@ class Battle {
     for (const grp of this.def.waves[this.wave]) {
       for (let i = 0; i < grp.n; i++) this.spawnEdge(grp.t);
     }
+    // 抉择带来的追兵（只在第一波）
+    if (this.wave === 0 && this.bonusExtra) {
+      for (let i = 0; i < this.bonusExtra; i++) this.spawnEdge('slave');
+      this.bonusExtra = 0;
+    }
   }
   spawnEdge(type) {
     const A = G.ARENA, U = G.util;
@@ -124,7 +140,8 @@ class Battle {
   // ---------- 天谴 ----------
   onPunish(info) {
     const res = info.res;
-    this.player.smite(res.dmgFrac !== undefined ? res.dmgFrac : 0.15, res.stun || 0.5);
+    const frac = (res.dmgFrac !== undefined ? res.dmgFrac : 0.15) * (this.smiteBonus || 1);
+    this.player.smite(frac, res.stun || 0.5);
     this.fx.push({ type: 'lightning', x: this.player.x, y: this.player.y, t: 0.45 });
     this.fx.push({ type: 'text', x: this.player.x, y: this.player.y - 70, t: 1.0, str: res.msg || '天谴！', color: '#ffd166', size: 40 });
     if (G.has('dao5')) this.fx.push({ type: 'text', x: this.player.x, y: this.player.y - 110, t: 1.2, str: '共鸣！伤害翻倍！', color: '#ff9166', size: 28 });

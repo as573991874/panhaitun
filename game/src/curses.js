@@ -259,7 +259,7 @@ G.Curses = {
     // 泡影护体：x豚跃后x别x按x任何x键
     postDashSilence: () => new CurseRule({
       id: 'postDashSilence',
-      short: '「豚跃后·别·按·任何·键」（泡泡成型需静默）',
+      short: '「豚跃后·别·按·任何·键」',
       window: 0,
       onNotify(what) { if (what === 'dash') this.window = 0.7; return null; },
       onPress(a) {

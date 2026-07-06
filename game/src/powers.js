@@ -170,6 +170,7 @@ class PowerPick {
     this.sel = 0;
     this.t = 0;
     this.phase = this.offers.length ? 'choose' : 'skip'; // choose → reveal
+    this.lockT = 0.7;   // 防误触：刚弹出时战斗连打的按键一概无效
     this.revealT = 0;
     this.dur = 0;
     this.grannyLine = '';
@@ -188,6 +189,8 @@ class PowerPick {
       return;
     }
     if (this.phase === 'choose') {
+      // 弹出锁定期：按键/点击一概无效，防止战斗连打误选
+      if (this.lockT > 0) { this.lockT -= dt; return; }
       const n = this.offers.length;
       if (G.Input.just.left) { this.sel = (this.sel + n - 1) % n; G.audio.select(); }
       if (G.Input.just.right) { this.sel = (this.sel + 1) % n; G.audio.select(); }
@@ -202,7 +205,7 @@ class PowerPick {
       if (G.Input.just.attack) this.confirm();
     } else if (this.phase === 'reveal') {
       this.revealT += dt;
-      if (this.revealT > 0.8 && (G.Input.just.attack || G.Input.mouse.just)) {
+      if (this.revealT > 1.2 && (G.Input.just.attack || G.Input.mouse.just)) {
         G.audio.select();
         this.onDone();
       }
@@ -242,10 +245,13 @@ class PowerPick {
     ctx.fillText(`【${G.Powers.realm(G.run.level)}】 帽婆婆：「挑吧。代价嘛……选完才知道。」`, G.W / 2, 186);
 
     if (this.phase === 'choose') {
+      ctx.globalAlpha = G.util.clamp(1 - this.lockT / 0.7, 0.25, 1);
       for (let i = 0; i < this.offers.length; i++) this.drawCard(ctx, i);
+      ctx.globalAlpha = 1;
       ctx.fillStyle = '#5a7684';
       ctx.font = G.font(24);
-      ctx.fillText('【A/D】选择　【J】缔结', G.W / 2, 920);
+      if (this.lockT > 0) ctx.fillText('…… 收 手 ，静 心 ，再 选 ……', G.W / 2, 920);
+      else ctx.fillText('【A/D】选择　【J】缔结', G.W / 2, 920);
     } else if (this.phase === 'reveal') {
       const o = this.offers[this.sel];
       const line = G.Powers.lines[o.power.line];
@@ -297,7 +303,7 @@ class PowerPick {
         ctx.fillStyle = '#e8c170';
         ctx.font = G.font(24);
         ctx.fillText(`帽婆婆：「${this.grannyLine}」`, G.W / 2, 930);
-        if (Math.sin(G.time * 5) > 0) {
+        if (this.revealT > 1.2 && Math.sin(G.time * 5) > 0) {
           ctx.fillStyle = '#5a7684';
           ctx.font = G.font(22);
           ctx.fillText('【J】继续战斗', G.W / 2, 980);
@@ -365,10 +371,11 @@ class PowerPick {
 G.PowerPick = PowerPick;
 
 // ======================== 羁绊同伴（战场实体） ========================
+// 她们是来讲故事的，不是来代打的——台词是主角，弹幕是点缀
 const BOND_QUOTES = {
-  hongxiao: ['看好了，胖子！', '这波花瓣，替你挡桃花。', '别死在本师姐前面！', '红线还没还呢，不许倒！'],
-  linger:   ['豚豚大人，接泡泡～', '灵儿在呢！', '不可以受伤啦！', '泡泡出发咯！'],
-  jingshu:  ['静。', '看箭。', '你动，我便动。', '心如止水，箭如骤雨。'],
+  hongxiao: ['看什么看，快打！', '本、本师姐才没在担心你！', '妖族怎么了？妖族的鳍最好看！', '红线还没还呢，不许倒下！', '躲开！……哼，算你反应快。'],
+  linger:   ['豚豚大人加油鸭！', '泡泡泡泡～接住嘛～', '灵儿的尾巴也很灵的！', '打完带灵儿去看海嘛！', '坏人！不许欺负大人！'],
+  jingshu:  ['静。', '看箭。', '……你很吵。（对敌人说的）', '心如止水。水，也会起浪。', '你站定的样子，很好。'],
 };
 
 class Companion {
@@ -403,7 +410,7 @@ class Companion {
       this.x += (tx - this.x) * Math.min(1, dt * 4);
       this.y += (ty - this.y) * Math.min(1, dt * 4);
       this.fireT -= dt;
-      if (this.fireT <= 0 && battle.enemies.length) { this.fireT = 4; this.volley(battle, syn); }
+      if (this.fireT <= 0 && battle.enemies.length) { this.fireT = 6; this.volley(battle, syn); }
       // 心有灵犀：玩家冲刺瞬间齐射
       if (G.has('hx3') && p.dashT > 0.15 && !this._dashSync) { this._dashSync = true; this.volley(battle, syn); }
       if (p.dashT <= 0) this._dashSync = false;
@@ -437,7 +444,7 @@ class Companion {
         }
       }
       this.fireT -= dt;
-      if (this.fireT <= 0 && battle.enemies.length) { this.fireT = 1.2; this.shoot(battle, syn); }
+      if (this.fireT <= 0 && battle.enemies.length) { this.fireT = 2.4; this.shoot(battle, syn); }
     }
   }
   volley(battle, syn) {
@@ -451,7 +458,7 @@ class Companion {
       const a = base + (i - (n - 1) / 2) * 0.16;
       battle.pshots.push({
         x: this.x, y: this.y, vx: Math.cos(a) * 420, vy: Math.sin(a) * 420,
-        r: 8, dmg: 6 * syn, pierce: G.has('hx2'), slow: G.has('hx5'), color: '#e07a9a', petal: true, hits: [],
+        r: 8, dmg: 3 * syn, pierce: G.has('hx2'), slow: G.has('hx5'), color: '#e07a9a', petal: true, hits: [],
       });
     }
     G.audio.wave();
@@ -465,7 +472,7 @@ class Companion {
     const sp = G.has('js2') ? 780 : 560;
     battle.pshots.push({
       x: this.x, y: this.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-      r: 7, dmg: 8 * syn, pierce: G.has('js2'), ripple: G.has('js4'), color: '#7ab0d0', arrow: true, hits: [],
+      r: 7, dmg: 4 * syn, pierce: G.has('js2'), ripple: G.has('js4'), color: '#7ab0d0', arrow: true, hits: [],
     });
     G.audio.hit();
   }
@@ -474,25 +481,12 @@ class Companion {
     ctx.save();
     ctx.translate(this.x, this.y + b);
     if (this.kind === 'hongxiao') {
-      ctx.scale(0.62, 0.62);
-      G.drawPortrait(ctx, 'sister', 0, 0, 1);
+      G.drawPortrait(ctx, 'sister', 0, 0, 0.62);
     } else if (this.kind === 'linger') {
-      // 小键灵：迷你键帽 + 翅膀
-      ctx.fillStyle = 'rgba(154,216,200,0.5)';
-      ctx.beginPath(); ctx.ellipse(-22, -6, 14, 7 + Math.sin(t * 20) * 3, -0.5, 0, 7); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(22, -6, 14, 7 + Math.sin(t * 20 + 3) * 3, 0.5, 0, 7); ctx.fill();
-      ctx.fillStyle = '#7ab8a8';
-      G.rr(ctx, -18, -18, 36, 34, 8); ctx.fill();
-      ctx.fillStyle = '#9ad8c8';
-      G.rr(ctx, -14, -15, 28, 24, 6); ctx.fill();
-      ctx.fillStyle = '#1c2733';
-      ctx.beginPath(); ctx.arc(-6, -6, 2.5, 0, 7); ctx.arc(6, -6, 2.5, 0, 7); ctx.fill();
-      ctx.strokeStyle = '#1c2733'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, 0, 4, 0.2, Math.PI - 0.2); ctx.stroke();
+      G.drawPortrait(ctx, 'linger', 0, 0, 0.5);
     } else {
-      ctx.scale(0.62, 0.62);
-      G.drawPortrait(ctx, 'jingshu', 0, 0, 1);
-      // 静姝的箭台光圈
+      G.drawPortrait(ctx, 'jingshu', 0, 0, 0.62);
+      // 静姝的止水缓速场
       if (G.has('js5')) {
         ctx.strokeStyle = `rgba(122,176,208,${0.25 + Math.sin(t * 2) * 0.1})`;
         ctx.lineWidth = 3;

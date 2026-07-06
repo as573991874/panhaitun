@@ -15,6 +15,10 @@ G.flow = {
       xp: 0, level: 0, levelQueue: 0, powers: [],
       met: { hongxiao: false, linger: false, jingshu: false },
       bondPity: {},
+      // 道心（关后抉择累计，决定结局分岔）
+      heart: 0, blade: 0,
+      nextBattleMods: null,
+      ending: 'confirm',
     };
   },
   start() { this.startAt(0, true); },
@@ -52,8 +56,11 @@ G.flow = {
         if (id === 'lv5') G.run.met.jingshu = true;
         return new DialogScene(D[id + 'Win'], next);
       });
+      // 关后抉择（道心分岔）
+      if (G.DATA.CHOICES[id]) this.steps.push(() => new ChoiceScene(id, next));
     }
-    this.steps.push(() => new DialogScene(D.ending, next));
+    // 结局对话按终章的选择动态决定
+    this.steps.push(() => new DialogScene(D['ending_' + (G.run.ending || 'confirm')], next));
     this.steps.push(() => new EndingScene());
     this.i = -1;
     this.next();
@@ -313,6 +320,129 @@ class DialogScene {
 }
 G.DialogScene = DialogScene;
 
+// ---------------- 关后抉择（道心分岔） ----------------
+class ChoiceScene {
+  constructor(levelId, onDone) {
+    this.data = G.DATA.CHOICES[levelId];
+    this.onDone = onDone;
+    this.sel = 0;
+    this.lockT = 0.8;          // 防误触
+    this.phase = 'choose';     // choose → after
+    this.afterT = 0;
+    this.picked = null;
+  }
+  optRect(i) {
+    const w = 760, h = 300;
+    return { x: G.W / 2 - w - 30 + i * (w + 60), y: 470, w, h };
+  }
+  update(dt) {
+    G.ThatKey.update(dt);
+    if (this.phase === 'choose') {
+      if (this.lockT > 0) { this.lockT -= dt; return; }
+      if (G.Input.just.left || G.Input.just.right) { this.sel = 1 - this.sel; G.audio.select(); }
+      const m = G.Input.mouse;
+      for (let i = 0; i < 2; i++) {
+        const r = this.optRect(i);
+        if (m.x > r.x && m.x < r.x + r.w && m.y > r.y && m.y < r.y + r.h) {
+          this.sel = i;
+          if (m.just) this.confirm();
+        }
+      }
+      if (G.Input.just.attack) this.confirm();
+    } else {
+      this.afterT += dt;
+      if (this.afterT > 1.2 && (G.Input.just.attack || G.Input.mouse.just)) {
+        G.audio.select();
+        this.onDone();
+      }
+    }
+  }
+  confirm() {
+    this.picked = this.sel === 0 ? this.data.a : this.data.b;
+    if (this.picked.tag === 'heart') G.run.heart++;
+    else G.run.blade++;
+    G.run.nextBattleMods = this.picked.fx || null;
+    this.phase = 'after';
+    this.afterT = 0;
+    G.audio.confirm();
+  }
+  wrap(ctx, text, cx, y, maxW, lh) {
+    let line = '', ly = y;
+    for (const ch of text) {
+      line += ch;
+      if (ctx.measureText(line).width > maxW) { ctx.fillText(line, cx, ly); line = ''; ly += lh; }
+    }
+    if (line) ctx.fillText(line, cx, ly);
+    return ly;
+  }
+  draw(ctx) {
+    const g = ctx.createLinearGradient(0, 0, 0, G.H);
+    g.addColorStop(0, '#0b0d12'); g.addColorStop(1, '#141220');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, G.W, G.H);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#e8c170';
+    ctx.font = G.font(46);
+    ctx.fillText('道 心 一 问', G.W / 2, 130);
+    // 道心计数
+    ctx.font = G.font(20);
+    ctx.fillStyle = '#e07a9a';
+    ctx.fillText(`情 ${'●'.repeat(G.run.heart)}${'○'.repeat(Math.max(0, 4 - G.run.heart))}`, G.W / 2 - 160, 178);
+    ctx.fillStyle = '#8fb0d8';
+    ctx.fillText(`争 ${'●'.repeat(G.run.blade)}${'○'.repeat(Math.max(0, 4 - G.run.blade))}`, G.W / 2 + 160, 178);
+    // 情境
+    ctx.fillStyle = '#c9d3dd';
+    ctx.font = G.font(30, 400);
+    this.wrap(ctx, this.data.prompt, G.W / 2, 280, 1400, 46);
+
+    if (this.phase === 'choose') {
+      ctx.globalAlpha = G.util.clamp(1 - this.lockT / 0.8, 0.25, 1);
+      for (let i = 0; i < 2; i++) {
+        const o = i === 0 ? this.data.a : this.data.b;
+        const r = this.optRect(i);
+        const hot = i === this.sel;
+        const color = o.tag === 'heart' ? '#e07a9a' : '#8fb0d8';
+        ctx.fillStyle = hot ? '#1c2430' : '#131a24';
+        G.rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.fill();
+        ctx.strokeStyle = hot ? color : '#2c3a48';
+        ctx.lineWidth = hot ? 4 : 2;
+        G.rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.font = G.font(22);
+        ctx.fillText(o.tag === 'heart' ? '〔情〕' : '〔争〕', r.x + r.w / 2, r.y + 48);
+        ctx.fillStyle = '#e8eef4';
+        ctx.font = G.font(30);
+        this.wrap(ctx, o.t, r.x + r.w / 2, r.y + 116, r.w - 100, 44);
+        ctx.fillStyle = '#7a9a8a';
+        ctx.font = G.font(21);
+        this.wrap(ctx, '◇ ' + o.hint, r.x + r.w / 2, r.y + 240, r.w - 100, 30);
+      }
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#5a7684';
+      ctx.font = G.font(23);
+      ctx.fillText(this.lockT > 0 ? '…… 想 清 楚 再 选 ……' : '【A/D】选择　【J】决断', G.W / 2, 950);
+    } else {
+      // 结果
+      const color = this.picked.tag === 'heart' ? '#e07a9a' : '#8fb0d8';
+      ctx.fillStyle = color;
+      ctx.font = G.font(28);
+      ctx.fillText(this.picked.tag === 'heart' ? '—— 道心 · 情 +1 ——' : '—— 道心 · 争 +1 ——', G.W / 2, 520);
+      ctx.fillStyle = '#e8eef4';
+      ctx.font = G.font(28, 400);
+      this.wrap(ctx, this.picked.after, G.W / 2, 600, 1300, 44);
+      ctx.fillStyle = '#7a9a8a';
+      ctx.font = G.font(22);
+      ctx.fillText('◇ ' + this.picked.hint, G.W / 2, 780);
+      if (this.afterT > 1.2 && Math.sin(G.time * 5) > 0) {
+        ctx.fillStyle = '#e8c170';
+        ctx.font = G.font(24);
+        ctx.fillText('【J】继续', G.W / 2, 900);
+      }
+    }
+    G.ThatKey.draw(ctx);
+  }
+}
+G.ChoiceScene = ChoiceScene;
+
 // ---------------- 终章：别按那个键 ----------------
 class FinaleScene {
   constructor(onDone) {
@@ -383,13 +513,48 @@ class FinaleScene {
   }
   addBubble(x, y) { this.bubbles.push({ x, y, hp: 3, t: 4 }); }
   addField() {}
+  // 三结局的收束
+  startSeq(kind) {
+    this.phase = kind;
+    this.seqT = 0;
+    G.Input.combatActive = false;
+    if (kind === 'devour') {
+      this.seq = [
+        { t: 0.2, sub: ['tuntun', '婆婆，你说过的——进了肚子，就是缘分。'] },
+        { t: 3.2, sub: ['granny', '小豚？！你要干什么——住手！！'] },
+        { t: 5.8, sub: ['narrator', '（吞）——海豚的习惯，别问。'] },
+      ];
+      this.seqEnd = 8.6;
+    } else {
+      this.seq = [
+        { t: 0.2, sub: ['tuntun', '婆婆。算数……给谁看？'] },
+        { t: 3.2, sub: ['tuntun', '祂说了算的世界，我不稀罕「算数」。'] },
+        { t: 6.2, sub: ['tuntun', '——不被记录的日子，我们自己记着。'] },
+      ];
+      this.seqEnd = 9.2;
+    }
+    G.audio.lock();
+    G.addShake(8, 0.3);
+  }
+  finish(ending) {
+    G.run.ending = ending;
+    // 记录结局达成（跨周目收集）
+    try {
+      const seen = JSON.parse(localStorage.getItem('btk_endings') || '{}');
+      seen[ending] = true;
+      localStorage.setItem('btk_endings', JSON.stringify(seen));
+    } catch (e) { }
+    this.phase = 'flash';
+    this.flashT = 0;
+    G.audio.win();
+  }
   update(dt) {
     this.t += dt;
     G.ThatKey.update(dt);
 
     if (this.phase === 'flash') {
       this.flashT += dt;
-      if (this.flashT > 2.2) { this.exit(); this.onDone(); }
+      if (this.flashT > 2.4) { this.exit(); this.onDone(); }
       return;
     }
 
@@ -422,9 +587,20 @@ class FinaleScene {
       const clicked = m.just && G.util.dist(m.x, m.y, G.ThatKey.x, G.ThatKey.y) < 70;
       if (G.Input.just.thatkey || clicked) {
         if (this.phase === 'prompt') { this.phase = 'confirm'; G.audio.thatkey(); G.addShake(10, 0.3); }
-        else { this.phase = 'flash'; this.flashT = 0; G.audio.win(); }
+        else { this.finish('confirm'); }
         G.Input.just.thatkey = false;
       }
+      // 道心分岔：争心占上风 → 可以吞了它；情心占上风 → 可以转身离开
+      if (this.phase === 'prompt') {
+        if (G.run.blade > G.run.heart && G.Input.just.skill) this.startSeq('devour');
+        if (G.run.heart > G.run.blade && G.Input.just.heal) this.startSeq('stay');
+      }
+    } else if (this.phase === 'devour' || this.phase === 'stay') {
+      this.seqT += dt;
+      for (const ev of this.seq) {
+        if (!ev.done && this.seqT >= ev.t) { ev.done = true; this.sub = ev.sub; this.subT = 3.2; }
+      }
+      if (this.seqT >= this.seqEnd) this.finish(this.phase);
     }
     this.subT = this.phase === 'truth' ? this.subT : Math.max(0, this.subT - dt);
 
@@ -546,6 +722,29 @@ class FinaleScene {
       ctx.fillText(`${who.name}：${this.sub[1]}`, G.W / 2, G.H - 145);
     }
 
+    // 三结局的演出层
+    if (this.phase === 'devour') {
+      ctx.fillStyle = `rgba(60,10,10,${Math.min(0.55, this.seqT * 0.08)})`;
+      ctx.fillRect(0, 0, G.W, G.H);
+      if (this.seqT > 5.8) {
+        // 吞键：天道之眼开始崩散
+        G.addShake(6, 0.1);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffd166';
+        ctx.font = G.font(30);
+        ctx.fillText('【警告！确认键信号丢失！警告——】', G.W / 2, 320);
+      }
+    }
+    if (this.phase === 'stay') {
+      ctx.fillStyle = `rgba(120,160,200,${Math.min(0.25, this.seqT * 0.04)})`;
+      ctx.fillRect(0, 0, G.W, G.H);
+      if (this.seqT > 6.2) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#a8c8e0';
+        ctx.font = G.font(30);
+        ctx.fillText('（天道的手，悬在半空。永远，落不下来了。）', G.W / 2, 320);
+      }
+    }
     // 按键提示阶段
     if (this.phase === 'prompt' || this.phase === 'confirm') {
       ctx.fillStyle = `rgba(255,60,40,${0.12 + Math.sin(G.time * 4) * 0.06})`;
@@ -557,6 +756,19 @@ class FinaleScene {
       ctx.fillStyle = '#e8c170';
       ctx.font = G.font(26);
       ctx.fillText('【Enter】或点击右下角', G.W / 2, G.H / 2 + 30);
+      // 道心解锁的岔路
+      if (this.phase === 'prompt') {
+        if (G.run.blade > G.run.heart) {
+          ctx.fillStyle = '#8fb0d8';
+          ctx.font = G.font(26);
+          ctx.fillText('争心已成 ——【K】或者……把它吞了', G.W / 2, G.H / 2 + 90);
+        }
+        if (G.run.heart > G.run.blade) {
+          ctx.fillStyle = '#e07a9a';
+          ctx.font = G.font(26);
+          ctx.fillText('情心已满 ——【L】或者……转身，回家', G.W / 2, G.H / 2 + 90);
+        }
+      }
       // 指向那个键的箭头
       const t = G.time;
       ctx.strokeStyle = '#ff6b5e'; ctx.lineWidth = 6;
@@ -584,13 +796,19 @@ class FinaleScene {
       ctx.fillText('【确认(Enter)】', G.W / 2 + 220, G.H / 2 + 218);
     }
     if (this.phase === 'flash') {
-      ctx.fillStyle = `rgba(255,255,255,${Math.min(1, this.flashT * 1.5)})`;
+      const e = G.run.ending;
+      const flashColor = e === 'devour' ? '10,6,8' : e === 'stay' ? '190,215,235' : '255,255,255';
+      ctx.fillStyle = `rgba(${flashColor},${Math.min(1, this.flashT * 1.5)})`;
       ctx.fillRect(0, 0, G.W, G.H);
       if (this.flashT > 1) {
-        ctx.fillStyle = `rgba(20,26,32,${Math.min(1, this.flashT - 1)})`;
+        const textColor = e === 'devour' ? `rgba(255,209,102,${Math.min(1, this.flashT - 1)})` : `rgba(20,26,32,${Math.min(1, this.flashT - 1)})`;
+        ctx.fillStyle = textColor;
         ctx.font = G.font(40);
         ctx.textAlign = 'center';
-        ctx.fillText('【确认成功。本局已记录。】', G.W / 2, G.H / 2);
+        const line = e === 'devour' ? '【错误：确认键丢失。权限——转移。】'
+          : e === 'stay' ? '【未确认。进程，保持运行。】'
+            : '【确认成功。本局已记录。】';
+        ctx.fillText(line, G.W / 2, G.H / 2);
       }
     }
     G.ThatKey.draw(ctx);
@@ -598,47 +816,98 @@ class FinaleScene {
 }
 G.FinaleScene = FinaleScene;
 
-// ---------------- 结局 ----------------
+// ---------------- 结局（三变体） ----------------
+const ENDINGS = {
+  confirm: {
+    no: '结局一', title: '万物算数', bg: '#0a0e14', titleColor: '#e8eef4',
+    epitaph: '豚豚站上了键台。这一次，堂堂正正。',
+    sub: '键台边多了一颗谁也不许碰的旧键帽。他说，那是他师父。',
+  },
+  devour: {
+    no: '结局二', title: '新天道', bg: '#08060a', titleColor: '#ffd166',
+    epitaph: '天上那只眼睛，生得胖胖的。看谁，都温柔。',
+    sub: '红绡赢的时候，云会动一下。',
+  },
+  stay: {
+    no: '结局三', title: '不算数的日子', bg: '#0c1218', titleColor: '#a8c8e0',
+    epitaph: '那一局棋至今没有结束。棋盘上，一群海豚活得很吵。',
+    sub: '不被记录的日子，他们自己记着。',
+  },
+};
 class EndingScene {
-  constructor() { this.t = 0; }
+  constructor() {
+    this.t = 0;
+    this.cfg = ENDINGS[G.run && G.run.ending] || ENDINGS.confirm;
+    try { this.seen = Object.keys(JSON.parse(localStorage.getItem('btk_endings') || '{}')).length; }
+    catch (e) { this.seen = 1; }
+    if (G.run && G.run.ending === 'confirm') {
+      // 确认结局也记录（吞键/转身在 finish() 已记）
+      try {
+        const seen = JSON.parse(localStorage.getItem('btk_endings') || '{}');
+        seen.confirm = true;
+        localStorage.setItem('btk_endings', JSON.stringify(seen));
+        this.seen = Object.keys(seen).length;
+      } catch (e) { }
+    }
+  }
   update(dt) {
     this.t += dt;
     if (this.t > 2 && G.Input.just.attack) { G.audio.confirm(); G.setScene(new TitleScene()); }
   }
   draw(ctx) {
-    ctx.fillStyle = '#0a0e14';
+    const c = this.cfg;
+    ctx.fillStyle = c.bg;
     ctx.fillRect(0, 0, G.W, G.H);
-    // 键台上的豚豚
     ctx.save();
     ctx.globalAlpha = Math.min(1, this.t / 2);
-    ctx.fillStyle = '#1d242e';
-    G.rr(ctx, G.W / 2 - 300, 560, 600, 80, 20); ctx.fill();
-    G.drawPortrait(ctx, 'tuntun', G.W / 2, 480, 1.6);
+    if (G.run.ending === 'devour') {
+      // 天上的胖眼睛
+      G.drawPortrait(ctx, 'heaven', G.W / 2, 460, 2.0);
+      ctx.fillStyle = 'rgba(255,209,102,0.5)';
+      ctx.beginPath(); ctx.ellipse(G.W / 2 + 46, 500, 10, 6, 0, 0, 7); ctx.fill(); // 腮红——祂胖胖的
+      ctx.beginPath(); ctx.ellipse(G.W / 2 - 46, 500, 10, 6, 0, 0, 7); ctx.fill();
+    } else {
+      ctx.fillStyle = '#1d242e';
+      G.rr(ctx, G.W / 2 - 300, 560, 600, 80, 20); ctx.fill();
+      G.drawPortrait(ctx, 'tuntun', G.W / 2, 480, 1.6);
+      if (G.run.ending === 'stay') {
+        // 姑娘们都在
+        G.drawPortrait(ctx, 'sister', G.W / 2 - 220, 510, 1.0);
+        G.drawPortrait(ctx, 'jingshu', G.W / 2 + 220, 510, 1.0);
+        G.drawPortrait(ctx, 'linger', G.W / 2 + 110, 400, 0.7);
+        G.drawPortrait(ctx, 'granny', G.W / 2 - 130, 400, 0.6);
+      }
+    }
     ctx.restore();
     ctx.textAlign = 'center';
     ctx.globalAlpha = Math.min(1, this.t / 1.5);
-    ctx.fillStyle = '#e8eef4';
-    ctx.font = G.font(72);
-    ctx.fillText('《别按那个键》', G.W / 2, 220);
-    ctx.font = G.font(34);
-    ctx.fillStyle = '#e8c170';
-    ctx.fillText('—— 完 ——', G.W / 2, 300);
-    ctx.globalAlpha = Math.min(1, Math.max(0, (this.t - 1.5) / 1.5));
     ctx.fillStyle = '#8a97a5';
-    ctx.font = G.font(26);
-    ctx.fillText('豚豚站上了键台。这一次，堂堂正正。', G.W / 2, 740);
+    ctx.font = G.font(28);
+    ctx.fillText(`—— ${c.no} ——`, G.W / 2, 160);
+    ctx.fillStyle = c.titleColor;
+    ctx.font = G.font(84);
+    ctx.fillText(`「 ${c.title} 」`, G.W / 2, 260);
+    ctx.globalAlpha = Math.min(1, Math.max(0, (this.t - 1.5) / 1.5));
+    ctx.fillStyle = '#c9d3dd';
+    ctx.font = G.font(28);
+    ctx.fillText(c.epitaph, G.W / 2, 740);
+    ctx.fillStyle = '#6a7a8a';
+    ctx.font = G.font(23);
+    ctx.fillText(c.sub, G.W / 2, 790);
     const n = G.ThatKey.count;
     ctx.fillStyle = '#c22f2f';
-    ctx.font = G.font(22);
-    ctx.fillText(`本次旅程你共手贱按了那个键 ${n} 次（结局那两次，不算手贱）`, G.W / 2, 810);
+    ctx.font = G.font(21);
+    ctx.fillText(`本次旅程你共手贱按了那个键 ${n} 次`, G.W / 2, 856);
     if (G.run) {
       ctx.fillStyle = '#5a7684';
-      ctx.fillText(`阵亡 ${G.run.deaths || 0} 次 · 境界【${G.Powers.realm(G.run.level)}】 · 缔结神通 ${G.run.powers.length} 道`, G.W / 2, 850);
+      ctx.fillText(`道心 情${G.run.heart}·争${G.run.blade} · 阵亡 ${G.run.deaths || 0} 次 · 境界【${G.Powers.realm(G.run.level)}】 · 神通 ${G.run.powers.length} 道`, G.W / 2, 896);
+      ctx.fillStyle = '#e8c170';
+      ctx.fillText(`已见证结局：${this.seen} / 3`, G.W / 2, 936);
     }
     if (this.t > 2 && Math.sin(this.t * 4) > 0) {
       ctx.fillStyle = '#e8c170';
       ctx.font = G.font(28);
-      ctx.fillText('【J】回到标题', G.W / 2, 960);
+      ctx.fillText('【J】回到标题', G.W / 2, 1000);
     }
     ctx.globalAlpha = 1;
   }

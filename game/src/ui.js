@@ -253,6 +253,64 @@ G.drawPortrait = (ctx, id, x, y, s) => {
     ctx.beginPath(); ctx.arc(-10, -14, 3.5, 0, 7); ctx.arc(10, -14, 3.5, 0, 7); ctx.fill();
     ctx.strokeStyle = '#3a2018';
     ctx.beginPath(); ctx.arc(0, 2, 8, 0.2, Math.PI - 0.2, true); ctx.stroke();
+  } else if (id === 'sister') {
+    // 红绡：火辣傲娇的海豚妖，肩披红绡纱
+    G.drawDolphinGirl(ctx, t, {
+      body: '#e8829e', belly: '#f8dce4', fin: '#c95f80',
+      eye: 'tsun',
+    });
+    // 红绡纱：一条从颈间飘起的红纱带
+    ctx.strokeStyle = 'rgba(220,60,70,0.85)'; ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(-8, -14);
+    ctx.quadraticCurveTo(-42, -30 + Math.sin(t * 3) * 6, -64, -6 + Math.sin(t * 3.5) * 10);
+    ctx.quadraticCurveTo(-80, 10 + Math.sin(t * 4) * 8, -72, 30);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(220,60,70,0.5)'; ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(-4, -10);
+    ctx.quadraticCurveTo(-30, 8 + Math.sin(t * 4.2) * 6, -58, 22 + Math.sin(t * 3.7) * 8);
+    ctx.stroke();
+  } else if (id === 'jingshu') {
+    // 静姝：清冷垂目的海豚妖，戴流苏发簪
+    G.drawDolphinGirl(ctx, t, {
+      body: '#93b3cc', belly: '#dfe9f2', fin: '#6c8ba8',
+      eye: 'calm',
+    });
+    // 发簪 + 流苏
+    ctx.strokeStyle = '#d8e4ee'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-14, -40); ctx.lineTo(24, -52); ctx.stroke();
+    ctx.fillStyle = '#7ab0d0';
+    ctx.beginPath(); ctx.arc(26, -53, 5, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#7ab0d0'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(26, -48); ctx.lineTo(24 + Math.sin(t * 2) * 3, -30); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(26, -48); ctx.lineTo(31 + Math.sin(t * 2.3) * 3, -32); ctx.stroke();
+  } else if (id === 'linger') {
+    // 灵儿：圆滚滚的键灵小海豚，头顶键帽当帽子
+    ctx.translate(0, Math.sin(t * 3) * 5);
+    G.drawDolphinGirl(ctx, t, {
+      body: '#9ad8c8', belly: '#e2f5ef', fin: '#6fb0a0',
+      eye: 'sparkle', small: 0.72,
+    });
+    // 键帽小帽子
+    ctx.save();
+    ctx.rotate(-0.12);
+    ctx.fillStyle = '#5a7a72';
+    G.rr(ctx, -22, -52, 44, 26, 7); ctx.fill();
+    ctx.fillStyle = '#7ab8a8';
+    G.rr(ctx, -18, -49, 36, 18, 5); ctx.fill();
+    ctx.fillStyle = '#e2f5ef';
+    ctx.font = G.font(15);
+    ctx.textAlign = 'center';
+    ctx.fillText('灵', 0, -35);
+    ctx.restore();
+    // 身边漂着小泡泡
+    for (let i = 0; i < 3; i++) {
+      const a = t * 1.4 + i * 2.1;
+      ctx.strokeStyle = 'rgba(154,216,200,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * 52, Math.sin(a * 1.3) * 26 - 8, 5 + Math.sin(t * 5 + i) * 2, 0, 7); ctx.stroke();
+    }
   } else if (c && c.g && c.g.eye) {
     // 天道：一只悬空巨眼
     ctx.fillStyle = '#0a0a10';
@@ -267,30 +325,6 @@ G.drawPortrait = (ctx, id, x, y, s) => {
     ctx.strokeStyle = `rgba(255,209,102,${0.3 + Math.sin(t * 3) * 0.15})`;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, 92, 0, 7); ctx.stroke();
-  } else if (c && c.g && c.g.fairy) {
-    // 灵儿：键帽小妖精（翅膀 + 大眼睛 + 呆毛）
-    ctx.translate(0, Math.sin(t * 3) * 5);
-    ctx.fillStyle = 'rgba(154,216,200,0.45)';
-    ctx.beginPath(); ctx.ellipse(-44, -8, 26, 13 + Math.sin(t * 16) * 4, -0.5, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(44, -8, 26, 13 + Math.sin(t * 16 + 3) * 4, 0.5, 0, 7); ctx.fill();
-    ctx.fillStyle = '#7ab8a8';
-    G.rr(ctx, -38, -38, 76, 72, 14); ctx.fill();
-    ctx.fillStyle = '#9ad8c8';
-    G.rr(ctx, -30, -32, 60, 52, 10); ctx.fill();
-    // 呆毛
-    ctx.strokeStyle = '#7ab8a8'; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(0, -38); ctx.quadraticCurveTo(6, -54, -4, -60); ctx.stroke();
-    // 大眼睛
-    ctx.fillStyle = '#1c2733';
-    ctx.beginPath(); ctx.arc(-13, -10, 7, 0, 7); ctx.arc(13, -10, 7, 0, 7); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(-11, -13, 2.5, 0, 7); ctx.arc(15, -13, 2.5, 0, 7); ctx.fill();
-    // 笑
-    ctx.strokeStyle = '#1c2733'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(0, 2, 8, 0.25, Math.PI - 0.25); ctx.stroke();
-    ctx.fillStyle = 'rgba(240,150,150,0.5)';
-    ctx.beginPath(); ctx.ellipse(-22, 2, 6, 3.5, 0, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(22, 2, 6, 3.5, 0, 0, 7); ctx.fill();
   } else if (c && c.g) {
     // 通用修士立绘：袍子 + 脸 + 表情参数
     const g = c.g;
@@ -396,6 +430,58 @@ G.AgeRating = {
     ctx.fillText('点击任意处或按操作键关闭', G.W / 2, py + ph - 30);
     ctx.restore();
   },
+};
+
+// 海豚少女通用底模：体色/肚皮/鳍色 + 三种眼神（tsun 傲娇 / calm 垂目 / sparkle 亮晶晶）
+G.drawDolphinGirl = (ctx, t, o) => {
+  const s = o.small || 1;
+  ctx.save();
+  ctx.scale(s, s);
+  // 尾巴
+  ctx.fillStyle = o.fin;
+  ctx.beginPath();
+  ctx.moveTo(-22, 2);
+  ctx.quadraticCurveTo(-46, -2 + Math.sin(t * 6) * 5, -54, -12 + Math.sin(t * 6) * 7);
+  ctx.quadraticCurveTo(-42, 4, -54, 14 + Math.sin(t * 6) * 5);
+  ctx.quadraticCurveTo(-40, 10, -22, 8);
+  ctx.fill();
+  // 身体（比豚豚修长）
+  ctx.fillStyle = o.body;
+  ctx.beginPath(); ctx.ellipse(0, 0, 30, 22, 0, 0, 7); ctx.fill();
+  // 肚皮
+  ctx.fillStyle = o.belly;
+  ctx.beginPath(); ctx.ellipse(5, 7, 20, 11, 0, 0, 7); ctx.fill();
+  // 背鳍
+  ctx.fillStyle = o.fin;
+  ctx.beginPath(); ctx.moveTo(-6, -19); ctx.quadraticCurveTo(2, -36, 11, -19); ctx.fill();
+  // 眼神（性格所在）
+  ctx.strokeStyle = '#1c2733'; ctx.lineWidth = 2.5;
+  ctx.fillStyle = '#1c2733';
+  if (o.eye === 'tsun') {
+    // 挑眉 + 眼角上挑 + 哼
+    ctx.beginPath(); ctx.moveTo(9, -15); ctx.lineTo(21, -11); ctx.stroke();
+    ctx.beginPath(); ctx.arc(16, -5, 4, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(17.5, -6.5, 1.4, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#1c2733';
+    ctx.beginPath(); ctx.moveTo(20, 6); ctx.quadraticCurveTo(25, 4, 27, 7); ctx.stroke(); // 撇嘴
+  } else if (o.eye === 'calm') {
+    // 垂目：一条温柔的弧线
+    ctx.beginPath(); ctx.moveTo(10, -6); ctx.quadraticCurveTo(16, -2, 22, -6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(18, 6); ctx.quadraticCurveTo(22, 8, 25, 6); ctx.stroke();
+  } else {
+    // 亮晶晶大眼
+    ctx.beginPath(); ctx.arc(15, -5, 5.5, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(16.5, -7, 2.2, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(13, -3, 1.1, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#1c2733';
+    ctx.beginPath(); ctx.arc(21, 5, 4, 0.3, Math.PI - 0.6); ctx.stroke(); // 咧嘴笑
+  }
+  // 腮红（都要有，浓淡不同）
+  ctx.fillStyle = o.eye === 'calm' ? 'rgba(240,150,150,0.3)' : 'rgba(240,120,130,0.55)';
+  ctx.beginPath(); ctx.ellipse(23, 1, 5, 3, 0, 0, 7); ctx.fill();
+  ctx.restore();
 };
 
 function drawCultivator(ctx, g, ox, oy, t) {
