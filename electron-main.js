@@ -14,7 +14,8 @@ const types = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.wav': 'audio/wav',
-  '.mp3': 'audio/mpeg'
+  '.mp3': 'audio/mpeg',
+  '.mp4': 'video/mp4'
 };
 const dec = s => s.replace(/%([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
 

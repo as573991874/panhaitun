@@ -18,6 +18,8 @@ G.Input = {
   init(canvas) {
     window.addEventListener('keydown', e => {
       if (e.repeat) return;
+      // 调试后门：Ctrl+Shift+9 直接胜利当前战斗（不外传）
+      if (e.ctrlKey && e.shiftKey && e.code === 'Digit9') { e.preventDefault(); G.debugWin && G.debugWin(); return; }
       G.audio.ensure();
       let a = this.map[e.code];
       if (!a) return;

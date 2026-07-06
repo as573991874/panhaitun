@@ -59,50 +59,32 @@ G.Rogue = {
     return routes.slice(0, 3);
   },
 
-  // ---- 机缘事件池 ----
-  // fx: hp(±)、healFull、queue(境界突破次数)、xp、shield、curse('random')、heart/blade
+  // ---- 机缘事件池（单结局：不再选完又选，福祸直接落地） ----
+  // fx: hp(±)、healFull、queue(境界突破次数)、shield、heart/blade、gamble(五五开)
   events: [
     {
-      id: 'spring', title: '灵泉', prompt: '崖底一汪灵泉，泉眼咕嘟咕嘟冒着泡。帽婆婆：「好东西。但泉底好像沉着什么。」',
-      opts: [
-        { t: '痛饮一顿（回满伤势）', fx: { healFull: 1 }, after: '泉水入腹，浑身伤口都在冒热气。舒坦！' },
-        { t: '潜到泉底摸一把（-25 血，捞一次突破机缘）', fx: { hp: -25, queue: 1 }, after: '被泉眼烫了个满怀，但你摸上来一块温热的键帽残晶——修为暴涨！' },
-      ],
+      id: 'spring', title: '灵泉', prompt: '崖底一汪灵泉，泉眼咕嘟咕嘟冒着泡。帽婆婆：「好东西，喝！」',
+      fx: { healFull: 1 }, after: '泉水入腹，浑身伤口都在冒热气。舒坦！（伤势痊愈）',
     },
     {
-      id: 'stele', title: '无字碑', prompt: '荒地里立着一块无字碑。指尖贴上去，有键位的纹路在碑底流动。',
-      opts: [
-        { t: '盘坐参悟（获得一次突破，但随机背上一条残誓）', fx: { queue: 1, curse: 'random' }, after: '碑文入体的一瞬，一道誓也跟着爬上了你的鳍。天下果然没有白参的碑。' },
-        { t: '拓下碑文就走（修为 +50）', fx: { xp: 50 }, after: '帽婆婆看着拓片直咂嘴：「稳健。稳健得不像你。」' },
-      ],
+      id: 'stele', title: '无字碑', prompt: '荒地里立着一块无字碑，键位的纹路在碑底流动。你盘坐下来，参了半个时辰。',
+      fx: { queue: 1 }, after: '碑文入体——灵气在肚子里打转。境界，将破！',
     },
     {
-      id: 'wounded', title: '受伤的妖族', prompt: '路边倒着一只被键誓反噬的小狐妖，尾巴还在冒烟，看到你就往石头后面缩。',
-      opts: [
-        { t: '渡灵力救它（-20 血，道心·情）', fx: { hp: -20, heart: 1, shield: 2 }, after: '小狐妖临走前绕着你转了三圈，往你身上呵了口妖气——凝成了两层水鳞。' },
-        { t: '指条安全的路，继续赶路（道心·争，修为 +40）', fx: { blade: 1, xp: 40 }, after: '「往东，别走官道。」小狐妖愣了愣，朝你重重点头。你没回头。' },
-      ],
+      id: 'wounded', title: '受伤的妖族', prompt: '路边倒着一只被键誓反噬的小狐妖，尾巴还在冒烟。你渡了一口灵力过去。',
+      fx: { hp: -15, shield: 2, heart: 1 }, after: '小狐妖绕着你转了三圈，呵出一口妖气——凝成两层水鳞。（-15 血，下一战护盾 ×2）',
     },
     {
-      id: 'merchant', title: '黑市键商', prompt: '破庙里蹲着个兜帽人，摊开一块布，上面摆着几颗来路不明的键帽。「小妖，以血换键，童叟无欺。」',
-      opts: [
-        { t: '以血换键（-30 血，获得一次突破）', fx: { hp: -30, queue: 1 }, after: '他收血的手法快得不像人。「合作愉快。」兜帽下面，好像也是一张海豚脸？' },
-        { t: '掀了他的摊（道心·争，修为 +45）', fx: { blade: 1, xp: 45 }, after: '兜帽人跑得比谁都快，落下一地键帽渣。帽婆婆：「打得好。这贩子上周还想拆了老身。」' },
-      ],
+      id: 'merchant', title: '黑市键商', prompt: '破庙里蹲着个兜帽人：「小妖，以血换键，童叟无欺。」你伸出了鳍。',
+      fx: { hp: -25, queue: 1 }, after: '他收血的手法快得不像人。「合作愉快。」——境界，将破！（-25 血）',
     },
     {
-      id: 'gamble', title: '赌石摊', prompt: '一块半人高的原石，摊主拍着胸脯：「里面准有上古键髓！开不开？」帽婆婆：「五五开。信他一半。」',
-      opts: [
-        { t: '开！（一半：获得突破；一半：被崩一脸 -20 血）', fx: { gamble: 1 }, after: '' },
-        { t: '不赌，走人（修为 +30）', fx: { xp: 30 }, after: '走出十步，身后传来"咔"的一声和摊主的嚎啕。帽婆婆：「你看，稳健多好。」' },
-      ],
+      id: 'gamble', title: '赌石摊', prompt: '一块半人高的原石，摊主拍胸脯：「里面准有上古键髓！」帽婆婆：「五五开。」你把鳍拍了上去——开！',
+      fx: { gamble: 1 }, after: '',
     },
     {
-      id: 'echo', title: '旧键盘的残响', prompt: '半截埋在土里的老键盘，键帽早掉光了。帽婆婆忽然安静下来：「……老伙计。」',
-      opts: [
-        { t: '陪婆婆坐一会儿（道心·情，修为 +60）', fx: { heart: 1, xp: 60 }, after: '帽婆婆絮絮叨叨讲了半个时辰的旧事。临走，老键盘的空位里，有一格微微发了光。' },
-        { t: '收殓残骸，继续赶路（修为 +40）', fx: { xp: 40 }, after: '你用泥把老键盘埋好了。帽婆婆没说话，但一路上都很轻。' },
-      ],
+      id: 'echo', title: '旧键盘的残响', prompt: '半截埋在土里的老键盘，键帽早掉光了。帽婆婆忽然安静下来：「……老伙计。」你陪她坐了半个时辰。',
+      fx: { hp: 30, heart: 1 }, after: '临走时，老键盘的空位里，有一格微微发了光。（回复 30）',
     },
   ],
 };
@@ -219,36 +201,22 @@ class RouteScene {
 }
 G.RouteScene = RouteScene;
 
-// ======================== 机缘事件场景 ========================
+// ======================== 机缘事件场景（单结局：读完→落地→上路） ========================
 class EventScene {
   constructor(ev, onDone) {
     this.ev = ev;
     this.onDone = onDone;
-    this.sel = 0;
     this.lockT = 0.6;
-    this.phase = 'choose';
+    this.phase = 'read';   // read → after
     this.afterT = 0;
     this.afterText = '';
     this.music = 'story';
   }
-  optRect(i) {
-    const w = 760, h = 240;
-    return { x: G.W / 2 - w - 30 + i * (w + 60), y: 500, w, h };
-  }
   update(dt) {
     G.ThatKey.update(dt);
-    if (this.phase === 'choose') {
+    if (this.phase === 'read') {
       if (this.lockT > 0) { this.lockT -= dt; return; }
-      if (G.Input.just.left || G.Input.just.right) { this.sel = 1 - this.sel; G.audio.select(); }
-      const m = G.Input.mouse;
-      for (let i = 0; i < 2; i++) {
-        const r = this.optRect(i);
-        if (m.x > r.x && m.x < r.x + r.w && m.y > r.y && m.y < r.y + r.h) {
-          this.sel = i;
-          if (m.just) this.confirm();
-        }
-      }
-      if (G.Input.just.attack) this.confirm();
+      if (G.Input.just.attack || G.Input.mouse.just) this.resolve();
     } else {
       this.afterT += dt;
       if (this.afterT > 1.2 && (G.Input.just.attack || G.Input.mouse.just)) {
@@ -257,42 +225,21 @@ class EventScene {
       }
     }
   }
-  confirm() {
-    const o = this.ev.opts[this.sel];
-    const fx = o.fx || {};
-    this.afterText = o.after;
+  resolve() {
+    const fx = this.ev.fx || {};
+    this.afterText = this.ev.after;
     const curHp = () => (G.run.hp == null ? 100 : G.run.hp);
     if (fx.gamble) {
       // 赌石：五五开
-      if (Math.random() < 0.5) { G.run.levelQueue++; this.afterText = '「咔——」石开键现！一颗上古键髓滚了出来，灵气扑面。摊主哭了。'; }
+      if (Math.random() < 0.5) { G.run.levelQueue++; this.afterText = '「咔——」石开键现！一颗上古键髓滚了出来，灵气扑面。摊主哭了。（境界将破）'; }
       else { G.run.hp = Math.max(15, curHp() - 20); this.afterText = '「砰！！」原石炸了你一脸碎渣（-20 血）。摊主：「哎呀，手滑。」帽婆婆已经在撸袖子了。'; }
     }
     if (fx.hp) G.run.hp = Math.max(15, Math.min(100, curHp() + fx.hp));
     if (fx.healFull) G.run.hp = 100;
     if (fx.queue) G.run.levelQueue += fx.queue;
-    if (fx.xp) {
-      G.run.xp += fx.xp;
-      while (G.run.xp >= G.Powers.xpNeed(G.run.level)) {
-        G.run.xp -= G.Powers.xpNeed(G.run.level);
-        G.run.level++;
-        G.run.levelQueue++;
-      }
-    }
     if (fx.shield) G.run.nextBattleMods = Object.assign(G.run.nextBattleMods || {}, { shield: fx.shield });
     if (fx.heart) G.run.heart += fx.heart;
     if (fx.blade) G.run.blade += fx.blade;
-    if (fx.curse === 'random') {
-      const activeCurses = G.run.tempCurses.map(c => c.rule.id);
-      const pool = G.Powers.costs.filter(c => !activeCurses.includes(c.curse));
-      if (pool.length) {
-        const cost = G.util.pick(pool);
-        const dur = G.util.randInt(1, 3);
-        const rule = G.Curses.create(cost.curse);
-        rule.levelsLeft = dur;
-        G.run.tempCurses.push({ rule, left: dur, cardName: this.ev.title });
-        this.afterText += `（残誓缠身：「${cost.tmpl}」× ${dur} 关）`;
-      }
-    }
     this.phase = 'after';
     this.afterT = 0;
     G.audio.confirm();
@@ -315,27 +262,14 @@ class EventScene {
     ctx.fillText(`机 缘 ·「${this.ev.title}」`, G.W / 2, 140);
     ctx.fillStyle = '#c9d3dd';
     ctx.font = G.font(29, 400);
-    this.wrap(ctx, this.ev.prompt, G.W / 2, 260, 1400, 46);
+    this.wrap(ctx, this.ev.prompt, G.W / 2, 300, 1400, 46);
 
-    if (this.phase === 'choose') {
-      ctx.globalAlpha = G.util.clamp(1 - this.lockT / 0.6, 0.25, 1);
-      for (let i = 0; i < 2; i++) {
-        const o = this.ev.opts[i];
-        const r = this.optRect(i);
-        const hot = i === this.sel;
-        ctx.fillStyle = hot ? '#1c2430' : '#131a24';
-        G.rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.fill();
-        ctx.strokeStyle = hot ? '#e8c170' : '#2c3a48';
-        ctx.lineWidth = hot ? 4 : 2;
-        G.rr(ctx, r.x, r.y, r.w, r.h, 18); ctx.stroke();
-        ctx.fillStyle = '#e8eef4';
-        ctx.font = G.font(28);
-        this.wrap(ctx, o.t, r.x + r.w / 2, r.y + 100, r.w - 100, 42);
+    if (this.phase === 'read') {
+      if (this.lockT <= 0 && Math.sin(G.time * 5) > 0) {
+        ctx.fillStyle = '#e8c170';
+        ctx.font = G.font(26);
+        ctx.fillText('【J】且看福祸', G.W / 2, 900);
       }
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#5a7684';
-      ctx.font = G.font(23);
-      ctx.fillText(this.lockT > 0 ? '……' : '【A/D】选择　【J】决断', G.W / 2, 940);
     } else {
       ctx.fillStyle = '#e8eef4';
       ctx.font = G.font(28, 400);

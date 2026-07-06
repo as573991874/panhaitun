@@ -31,6 +31,7 @@ class Battle {
     this.winT = 0;
     this.mercyAsk = false;
     this.pick = null;     // 升级三选一覆盖层
+    this.pickCd = 0;      // 突破间隔：一场里不连着弹三选一
   }
 
   enter() {
@@ -40,6 +41,11 @@ class Battle {
       this.levelRule = G.Curses.create(this.def.curse);
       rules.push(this.levelRule);
     }
+    // 键誓与残誓互斥时，以关卡为主：死锁的残誓直接作废
+    G.run.tempCurses = G.run.tempCurses.filter(c => {
+      const cost = G.Powers.costs.find(k => k.curse === c.rule.id);
+      return !(cost && cost.conflicts.includes(this.def.id));
+    });
     for (const c of G.run.tempCurses) rules.push(c.rule);
     G.Input.setRules(rules);
     G.events.clear('punish');
@@ -60,7 +66,6 @@ class Battle {
     if (nm) {
       if (nm.shield) this.player.shield = nm.shield;
       if (nm.wave) this.player.wave = Math.min(100, nm.wave);
-      if (nm.xp) this.addXp(nm.xp);
       if (nm.enemyHpMul) this.enemyHpMul *= nm.enemyHpMul;
       if (nm.extra) this.bonusExtra = nm.extra;
       if (nm.smiteMul) this.smiteBonus *= nm.smiteMul;
@@ -240,6 +245,24 @@ class Battle {
       this.pick.update(dt);
       return;
     }
+    // 突破演出：先在战场上炸开，再弹三选一
+    if (this.state === 'breakthrough') {
+      G.Input.combatActive = false;
+      this.stateT -= dt;
+      for (const f of this.fx) f.t -= dt;
+      this.fx = this.fx.filter(f => f.t > 0);
+      if (this.stateT <= 0) {
+        this.state = 'levelup';
+        this.pick = new G.PowerPick(this.def.id, () => {
+          this.state = 'fight';
+          this.player.iframes = Math.max(this.player.iframes, 1.2);
+          this.pickCd = 20;   // 缓一缓，别连着突破
+          this.syncCompanions();
+          this.pick = null;
+        });
+      }
+      return;
+    }
 
     // --- fight ---
     if (this.tipT > 0) {
@@ -247,16 +270,25 @@ class Battle {
       G.Input.combatActive = false;
       return;
     }
-    // 境界突破触发
-    if (G.run.levelQueue > 0) {
+    // 境界突破触发（带演出与间隔）
+    this.pickCd = Math.max(0, this.pickCd - dt);
+    if (G.run.levelQueue > 0 && this.pickCd <= 0) {
       G.run.levelQueue--;
-      this.state = 'levelup';
-      this.pick = new G.PowerPick(this.def.id, () => {
-        this.state = 'fight';
-        this.player.iframes = Math.max(this.player.iframes, 1.2);
-        this.syncCompanions();
-        this.pick = null;
-      });
+      this.state = 'breakthrough';
+      this.stateT = 1.4;
+      const p = this.player;
+      p.iframes = Math.max(p.iframes, 3);
+      this.bullets = [];   // 突破冲击波荡开一切敌弹
+      for (const e of this.enemies) {
+        e.hit(0, p.x, p.y, 420);
+        if (!e.isBoss) e.stunT = Math.max(e.stunT, 1.2);
+      }
+      this.fx.push({ type: 'ring', x: p.x, y: p.y, t: 0.5, max: 340, color: '#e8c170' });
+      this.fx.push({ type: 'ring', x: p.x, y: p.y, t: 0.9, max: 560, color: '#b8a8e8' });
+      this.fx.push({ type: 'text', x: p.x, y: p.y - 90, t: 1.4, str: '境界突破！', color: '#e8c170', size: 48 });
+      this.fx.push({ type: 'text', x: p.x, y: p.y - 140, t: 1.4, str: `【${G.Powers.realm(G.run.level)}】`, color: '#b8a8e8', size: 28 });
+      G.addShake(12, 0.4);
+      G.audio.win();
       return;
     }
     G.Input.combatActive = true;
@@ -673,6 +705,10 @@ class Battle {
       ctx.fillText('键誓生效中——违反一次，遭一次天谴（扣血 + 麻痹）。', G.W / 2, G.H / 2);
       ctx.fillStyle = '#e8c170';
       ctx.fillText('帽婆婆：「用别的活法赢。」', G.W / 2, G.H / 2 + 60);
+    }
+    if (this.state === 'breakthrough') {
+      ctx.fillStyle = `rgba(232,193,112,${0.16 * Math.max(0, this.stateT / 1.4)})`;
+      ctx.fillRect(0, 0, G.W, G.H);
     }
     if (this.state === 'levelup' && this.pick) this.pick.draw(ctx);
     if (this.state === 'dead') {

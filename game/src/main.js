@@ -43,6 +43,21 @@
     ctx.restore();
   }
 
+  // 调试用：直接胜利当前战斗（Ctrl+Shift+9 触发，见 input.js）
+  G.debugWin = () => {
+    const b = G.currentBattle;
+    if (!b) return;
+    if (b.startWin) {
+      if (!['fight', 'bossIntro', 'curse'].includes(b.state)) return;
+      b.enemies = []; b.markers = []; b.bullets = [];
+      b.bossSpawned = true;          // 不再进 bossIntro
+      b.wave = b.def.waves.length;   // 不再出下一波
+      b.startWin();
+    } else if (b.phase === 'fight') {
+      b.t = 999;                     // 终章：快进整段封印剧本到真相
+    }
+  };
+
   // 调试用：后台标签页 rAF 停摆时手动推帧
   G.step = (n) => {
     for (let i = 0; i < (n || 1); i++) {

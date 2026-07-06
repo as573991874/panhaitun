@@ -14,7 +14,6 @@ G.flow = {
       // 修为与神通
       xp: 0, level: 0, levelQueue: 0, powers: [],
       met: { hongxiao: false, linger: false, jingshu: false },
-      bondPity: {},
       // 道心（关后抉择累计，决定结局分岔）
       heart: 0, blade: 0,
       nextBattleMods: null,
@@ -28,18 +27,24 @@ G.flow = {
   startAt(levelIdx, withPrologue) {
     this.newRun();
     // 跳关：补发已错过的羁绊与修为（进关立刻连续突破补选神通）
-    G.run.met.hongxiao = levelIdx >= 3;
-    G.run.met.linger = levelIdx >= 4;
-    G.run.met.jingshu = levelIdx >= 5;
+    const bond = (flag, pid) => {
+      G.run.met[flag] = true;
+      if (!G.run.powers.includes(pid)) G.run.powers.push(pid);
+    };
+    if (levelIdx >= 3) bond('hongxiao', 'hx1');
+    if (levelIdx >= 4) bond('linger', 'lg1');
+    if (levelIdx >= 5) bond('jingshu', 'js1');
     G.run.level = levelIdx;
     G.run.levelQueue = levelIdx;
     const D = G.DATA.DIALOGS, L = G.DATA.LEVELS, order = G.DATA.LEVEL_ORDER;
     const next = () => this.next();
     this.steps = [];
     if (withPrologue) {
+      this.steps.push(() => new G.CGScene('assets/cg-0.mp4', next)); // 砍柴跌落山崖，偶遇帽婆婆
       this.steps.push(() => new DialogScene(D.prologue, next));
       this.steps.push(() => new G.Battle(L.tutorial, next));
       this.steps.push(() => new DialogScene(D.afterTutorial, next));
+      this.steps.push(() => new G.CGScene('assets/cg-1.mp4', next)); // 被师兄弟嘲笑，暗下决心
     }
     for (let i = levelIdx; i < order.length; i++) {
       const id = order[i];
@@ -48,6 +53,8 @@ G.flow = {
         this.steps.push(() => new FinaleScene(next));
         continue;
       }
+      // 天道降临 CG：宗主夺键失败，惊动本尊
+      if (id === 'lv9') this.steps.push(() => new G.CGScene('assets/cg-3.mp4', next));
       this.steps.push(() => {
         if (id === 'lv8') G.run.act3 = true;
         G.run.hp = null;             // 新的一关：伤势养好了
@@ -60,11 +67,17 @@ G.flow = {
       this.steps.push(() => new G.Battle(
         Object.assign(G.Rogue.bossDef(L[id]), { skipCurseIntro: G.run.curseIntroDone }),
         () => { this.decayCurses(); next(); }));
+      // 比试爆发 CG：险胜铁牛的那一瞬
+      if (id === 'lv2') this.steps.push(() => new G.CGScene('assets/cg-2.mp4', next));
       this.steps.push(() => {
-        // 羁绊达成（过关剧情里认识她们，之后突破时才会出现她们的缘起神通）
-        if (id === 'lv3') G.run.met.hongxiao = true;
-        if (id === 'lv4') G.run.met.linger = true;
-        if (id === 'lv5') G.run.met.jingshu = true;
+        // 羁绊达成：缘起神通由剧情直接缔结，她从下一战起驰援战场
+        const bond = (flag, pid) => {
+          G.run.met[flag] = true;
+          if (!G.run.powers.includes(pid)) G.run.powers.push(pid);
+        };
+        if (id === 'lv3') bond('hongxiao', 'hx1');
+        if (id === 'lv4') bond('linger', 'lg1');
+        if (id === 'lv5') bond('jingshu', 'js1');
         return new DialogScene(D[id + 'Win'], next);
       });
       // 关后抉择（道心分岔）
@@ -372,7 +385,10 @@ class ChoiceScene {
     this.picked = this.sel === 0 ? this.data.a : this.data.b;
     if (this.picked.tag === 'heart') G.run.heart++;
     else G.run.blade++;
-    G.run.nextBattleMods = this.picked.fx || null;
+    // 不给经验：fx.queue 直接兑成一次境界突破，其余留给下一战开局
+    const fx = Object.assign({}, this.picked.fx);
+    if (fx.queue) { G.run.levelQueue += fx.queue; delete fx.queue; }
+    G.run.nextBattleMods = Object.keys(fx).length ? fx : null;
     this.phase = 'after';
     this.afterT = 0;
     G.audio.confirm();
@@ -522,6 +538,7 @@ class FinaleScene {
     G.Input.combatActive = false;
     G.ThatKey.override = null;
     G.events.clear('punish');
+    if (this.cg) { this.cg.onDone = null; this.cg.finish(); this.cg = null; }
   }
   addBubble(x, y) { this.bubbles.push({ x, y, hp: 3, t: 4 }); }
   addField() {}
@@ -562,6 +579,12 @@ class FinaleScene {
   }
   update(dt) {
     this.t += dt;
+    // 真相 CG 播放期间：世界暂停
+    if (this.cg) {
+      G.Input.combatActive = false;
+      this.cg.update(dt);
+      return;
+    }
     G.ThatKey.update(dt);
 
     if (this.phase === 'flash') {
@@ -582,7 +605,12 @@ class FinaleScene {
             this.fx.push({ type: 'text', x: this.player.x, y: this.player.y - 90, t: 1.4, str: '【封印】', color: '#ff6b5e', size: 44 });
           }
           if (ev.slow) this.slowed = true;
-          if (ev.truth) { this.phase = 'truth'; this.bullets = []; this.truthIdx = 0; this.subT = 3.4; this.sub = this.truthLines[0]; }
+          if (ev.truth) {
+            this.phase = 'truth'; this.bullets = []; this.truthIdx = 0; this.subT = 3.4; this.sub = this.truthLines[0];
+            // 濒死之际的真相 CG：这局挂机程序、守护进程、确认键
+            G.music.set('cg');
+            this.cg = new G.CGPlayer('assets/cg-4.mp4', () => { this.cg = null; G.music.set('battle'); });
+          }
         }
       }
     } else if (this.phase === 'truth') {
@@ -677,6 +705,7 @@ class FinaleScene {
     this.fx = this.fx.filter(f => f.t > 0);
   }
   draw(ctx) {
+    if (this.cg) { this.cg.draw(ctx); return; }
     // 天裂空间
     const g = ctx.createLinearGradient(0, 0, 0, G.H);
     g.addColorStop(0, '#05050a'); g.addColorStop(1, '#100a1a');

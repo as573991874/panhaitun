@@ -28,6 +28,20 @@
         }
       ],
       "icon": "assets/icon-256.png"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "assets/icon-2048.png",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     }
   },
   "devDependencies": {

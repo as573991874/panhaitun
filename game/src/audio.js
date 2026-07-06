@@ -83,7 +83,8 @@ G.music = {
     const stepDur = this.mode === 'battle' ? 0.125 : 0.24; // 战斗 120bpm 十六分 / 剧情舒缓
     while (this.next < now + 0.3) {
       if (this.mode === 'battle') this.battleStep(this.next);
-      else this.storyStep(this.next);
+      else if (this.mode === 'story') this.storyStep(this.next); // 'cg' 等其他模式静音
+
       this.next += stepDur;
       this.step++;
       if (this.step % 16 === 0) this.bar++;

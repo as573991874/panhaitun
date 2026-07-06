@@ -1,6 +1,7 @@
 // ======================== 神通系统：成长线 / 升级三选一 / 羁绊同伴 ========================
 // 设计原则：神通一律是"机制"不是数值；每条成长线可 build 成型；
-// 代价（残誓）从代价池随机抽取、选择前隐藏、时效 1~4 关随机。
+// 代价（残誓）从代价池随机抽取、选择前隐藏、时效 1~3 关随机；
+// 残誓只给一句誓词，不给详解——让玩家自己领悟。
 
 G.has = id => !!(G.run && G.run.powers && G.run.powers.includes(id));
 G.lineCount = line => G.run.powers.reduce((n, id) => {
@@ -9,8 +10,8 @@ G.lineCount = line => G.run.powers.reduce((n, id) => {
 }, 0);
 
 G.Powers = {
-  // ---- 修为曲线 ----
-  xpNeed(level) { return 50 + 28 * level; },
+  // ---- 修为曲线（放缓：让玩家先适应节奏，突破再来） ----
+  xpNeed(level) { return 80 + 45 * level; },
   xpValue: { slave: 12, shooter: 15, charger: 18 },
   bossXp: 80,
   realms: ['炼气', '筑基', '结丹', '元婴', '化神', '炼虚', '合体', '大乘', '渡劫', '问道', '斩天', '无量'],
@@ -31,74 +32,75 @@ G.Powers = {
 
   // ---- 神通池（50）----
   // req: 前置神通 id；reqLine: {line, n} 线内已有 n 个；gate: 羁绊剧情门槛；apply: 立即生效的修正
+  // tier: 理解成本（1 一眼就懂 / 2 有点门道 / 3 玩明白了再说），前期只发低 tier
   list: [
     // ===== 浪线：把尾拍打成弹幕 =====
-    { id: 'blade1', line: 'blade', name: '水刃初显', key: 'J', desc: '三连击的终结拍，甩出一道贯穿水刃' },
-    { id: 'blade2', line: 'blade', name: '三叉浪', key: 'J', desc: '水刃变为三道扇形齐射', req: 'blade1' },
-    { id: 'blade3', line: 'blade', name: '回旋刃', key: 'J', desc: '水刃飞至尽头后折返，再伤一轮', req: 'blade1' },
-    { id: 'blade4', line: 'blade', name: '裂空斩', key: 'J', desc: '水刃命中敌人时裂出两道斜刃', req: 'blade1' },
-    { id: 'blade5', line: 'blade', name: '浪墙', key: 'J', desc: '每完成一轮三连击，推出一面横扫的浪墙', req: 'blade1' },
-    { id: 'blade6', line: 'blade', name: '鲸落', key: 'J', desc: '按住 J 蓄力 0.6 秒后松开：大范围重拍，拍飞一切' },
+    { id: 'blade1', line: 'blade', name: '水刃初显', key: 'J', tier: 1, desc: '三连第三拍甩出贯穿水刃' },
+    { id: 'blade2', line: 'blade', name: '三叉浪', key: 'J', tier: 2, desc: '水刃变三道扇形齐射', req: 'blade1' },
+    { id: 'blade3', line: 'blade', name: '回旋刃', key: 'J', tier: 2, desc: '水刃尽头折返，再伤一轮', req: 'blade1' },
+    { id: 'blade4', line: 'blade', name: '裂空斩', key: 'J', tier: 2, desc: '水刃命中裂出两道斜刃', req: 'blade1' },
+    { id: 'blade5', line: 'blade', name: '浪墙', key: 'J', tier: 2, desc: '每轮三连击推出一面浪墙', req: 'blade1' },
+    { id: 'blade6', line: 'blade', name: '鲸落', key: 'J', tier: 2, desc: '按住 J 蓄力，松开重拍一切' },
 
     // ===== 影线：冲刺即武器 =====
-    { id: 'sh1', line: 'shadow', name: '残影爆裂', key: '空格', desc: '豚跃的起点留下残影，随后炸裂' },
-    { id: 'sh2', line: 'shadow', name: '泡影护体', key: '空格', desc: '豚跃落点生成挡弹泡（可挡 3 发敌弹）' },
-    { id: 'sh3', line: 'shadow', name: '影针', key: '空格', desc: '残影炸裂时射出六向水针', req: 'sh1' },
-    { id: 'sh4', line: 'shadow', name: '破军之跃', key: '空格', desc: '豚跃穿过的敌人被冲晕并受创' },
-    { id: 'sh5', line: 'shadow', name: '连绵不绝', key: '空格', desc: '豚跃穿过敌人时，立刻返还一段充能' },
-    { id: 'sh6', line: 'shadow', name: '幻影多重', key: '空格', desc: '豚跃 +1 段充能', apply() { G.run.mods.dashCharges = 2; } },
+    { id: 'sh1', line: 'shadow', name: '残影爆裂', key: '空格', tier: 1, desc: '豚跃起点留残影，随后炸裂' },
+    { id: 'sh2', line: 'shadow', name: '泡影护体', key: '空格', tier: 1, desc: '豚跃落点生成挡弹泡' },
+    { id: 'sh3', line: 'shadow', name: '影针', key: '空格', tier: 2, desc: '残影炸裂射出六向水针', req: 'sh1' },
+    { id: 'sh4', line: 'shadow', name: '破军之跃', key: '空格', tier: 2, desc: '豚跃穿过的敌人冲晕受创' },
+    { id: 'sh5', line: 'shadow', name: '连绵不绝', key: '空格', tier: 2, desc: '跃穿敌人立返一段充能' },
+    { id: 'sh6', line: 'shadow', name: '幻影多重', key: '空格', tier: 1, desc: '豚跃 +1 段充能', apply() { G.run.mods.dashCharges = 2; } },
 
     // ===== 音线：音爆改写弹幕 =====
-    { id: 'so1', line: 'sound', name: '音爆余韵', key: 'K', desc: '音爆过后留下灼烧声场 3 秒' },
-    { id: 'so2', line: 'sound', name: '夺弹反奏', key: 'K', desc: '音爆把范围内的敌弹夺为己有，向外反射' },
-    { id: 'so3', line: 'sound', name: '双重奏', key: 'K', desc: '音爆 0.6 秒后，在原地再炸一次', reqLine: { line: 'sound', n: 1 } },
-    { id: 'so4', line: 'sound', name: '缓声之环', key: 'K', desc: '声场同时让敌人与敌弹迟缓 50%', req: 'so1' },
-    { id: 'so5', line: 'sound', name: '音之枪', key: 'K', desc: '音波满盈时，下一次尾拍化作贯穿全场的音波狙击' },
-    { id: 'so6', line: 'sound', name: '连环爆', key: 'K', desc: '被音爆击杀的敌人原地殉爆', reqLine: { line: 'sound', n: 1 } },
+    { id: 'so1', line: 'sound', name: '音爆余韵', key: 'K', tier: 1, desc: '音爆留下灼烧声场' },
+    { id: 'so2', line: 'sound', name: '夺弹反奏', key: 'K', tier: 2, desc: '音爆夺敌弹为己有，反射出去' },
+    { id: 'so3', line: 'sound', name: '双重奏', key: 'K', tier: 2, desc: '音爆过后，原地再炸一次', reqLine: { line: 'sound', n: 1 } },
+    { id: 'so4', line: 'sound', name: '缓声之环', key: 'K', tier: 2, desc: '声场令敌与敌弹迟缓', req: 'so1' },
+    { id: 'so5', line: 'sound', name: '音之枪', key: 'K', tier: 3, desc: '音波满盈时，尾拍化贯穿狙击' },
+    { id: 'so6', line: 'sound', name: '连环爆', key: 'K', tier: 2, desc: '音爆击杀的敌人殉爆', reqLine: { line: 'sound', n: 1 } },
 
     // ===== 息线：吐纳不只是回血 =====
-    { id: 'br1', line: 'breath', name: '吞纳漩涡', key: 'L', desc: '吐纳引导时吞掉身边的敌弹，每颗化为音波' },
-    { id: 'br2', line: 'breath', name: '盈息护罩', key: 'L', desc: '满血时吐纳改为凝聚一层水鳞护盾' },
-    { id: 'br3', line: 'breath', name: '吐纳冲击', key: 'L', desc: '回复完成的瞬间，弹开身边的敌人与敌弹', reqLine: { line: 'breath', n: 1 } },
-    { id: 'br4', line: 'breath', name: '以息养刃', key: 'L', desc: '吐纳完成后，接下来三次尾拍带治疗之力（增伤且回血）', reqLine: { line: 'breath', n: 1 } },
-    { id: 'br5', line: 'breath', name: '深海吐纳', key: 'L', desc: '回复量翻倍，但引导需两息', apply() { G.run.mods.healMul *= 2; G.run.mods.channelTime = 2.0; } },
+    { id: 'br1', line: 'breath', name: '吞纳漩涡', key: 'L', tier: 2, desc: '吐纳时吞敌弹，化为音波' },
+    { id: 'br2', line: 'breath', name: '盈息护罩', key: 'L', tier: 1, desc: '满血吐纳改凝护盾' },
+    { id: 'br3', line: 'breath', name: '吐纳冲击', key: 'L', tier: 2, desc: '回复完成，弹开身边一切', reqLine: { line: 'breath', n: 1 } },
+    { id: 'br4', line: 'breath', name: '以息养刃', key: 'L', tier: 3, desc: '吐纳后三次尾拍增伤回血', reqLine: { line: 'breath', n: 1 } },
+    { id: 'br5', line: 'breath', name: '深海吐纳', key: 'L', tier: 2, desc: '回复翻倍，引导需两息', apply() { G.run.mods.healMul *= 2; G.run.mods.channelTime = 2.0; } },
 
     // ===== 鳞线：在弹幕里活下来（含擦弹）=====
-    { id: 'sc1', line: 'scale', name: '跃鳞', key: '空格', desc: '每次豚跃披上一层水鳞护盾（挡下一次伤害）' },
-    { id: 'sc2', line: 'scale', name: '碎鳞反击', key: '—', desc: '护盾碎裂时，向四周迸射十二向水针', reqLine: { line: 'scale', n: 1 } },
-    { id: 'sc3', line: 'scale', name: '擦浪', key: '—', desc: '敌弹擦身而过（未命中），化为音波' },
-    { id: 'sc4', line: 'scale', name: '刹那时凝', key: '—', desc: '受击的刹那，全场敌弹凝滞一瞬' },
-    { id: 'sc5', line: 'scale', name: '键灵附体', key: '—', desc: '受击时，键灵有 25% 概率替你挡下', apply() { G.run.mods.shieldChance += 0.25; } },
-    { id: 'sc6', line: 'scale', name: '棘水', key: '—', desc: '受创时向八方迸出反击水刺' },
+    { id: 'sc1', line: 'scale', name: '跃鳞', key: '空格', tier: 1, desc: '每次豚跃披一层护盾' },
+    { id: 'sc2', line: 'scale', name: '碎鳞反击', key: '—', tier: 2, desc: '护盾碎裂，迸射十二向水针', reqLine: { line: 'scale', n: 1 } },
+    { id: 'sc3', line: 'scale', name: '擦浪', key: '—', tier: 3, desc: '敌弹擦身而过，化为音波' },
+    { id: 'sc4', line: 'scale', name: '刹那时凝', key: '—', tier: 2, desc: '受击刹那，全场敌弹凝滞' },
+    { id: 'sc5', line: 'scale', name: '键灵附体', key: '—', tier: 1, desc: '受击 25% 概率键灵代挡', apply() { G.run.mods.shieldChance += 0.25; } },
+    { id: 'sc6', line: 'scale', name: '棘水', key: '—', tier: 2, desc: '受创向八方迸出水刺' },
 
     // ===== 道线：改写规则本身 =====
-    { id: 'dao1', line: 'dao', name: '弹指破浪', key: 'J', desc: '尾拍可以直接拍碎敌弹' },
-    { id: 'dao2', line: 'dao', name: '碎弹取音', key: 'J', desc: '被拍碎的敌弹化为音波', req: 'dao1' },
-    { id: 'dao3', line: 'dao', name: '怒海', key: '—', desc: '濒死（血量 <30%）时：尾拍自带双刃且出手更快' },
-    { id: 'dao4', line: 'dao', name: '大智若鱼', key: '—', desc: '静止一息凝神后，下一击必为三连终结拍' },
-    { id: 'dao5', line: 'dao', name: '天键共鸣', key: '—', desc: '每次遭天谴后 3 秒内，伤害翻倍（把惩罚炼成武器）' },
-    { id: 'dao6', line: 'dao', name: '万象归一', key: '—', desc: '水刃、残影、音爆与同伴的伤害 +25%', reqLines: 3, apply() { G.run.mods.synergyMul = 1.25; } },
+    { id: 'dao1', line: 'dao', name: '弹指破浪', key: 'J', tier: 1, desc: '尾拍可拍碎敌弹' },
+    { id: 'dao2', line: 'dao', name: '碎弹取音', key: 'J', tier: 2, desc: '拍碎的敌弹化为音波', req: 'dao1' },
+    { id: 'dao3', line: 'dao', name: '怒海', key: '—', tier: 2, desc: '濒死时尾拍双刃且更快' },
+    { id: 'dao4', line: 'dao', name: '大智若鱼', key: '—', tier: 3, desc: '静立一息，下击必为终结拍' },
+    { id: 'dao5', line: 'dao', name: '天键共鸣', key: '—', tier: 3, desc: '遭天谴后 3 秒，伤害翻倍' },
+    { id: 'dao6', line: 'dao', name: '万象归一', key: '—', tier: 3, desc: '全队伤害 +25%', reqLines: 3, apply() { G.run.mods.synergyMul = 1.25; } },
 
-    // ===== 缘·红绡：弹幕烈焰的师姐 =====
-    { id: 'hx1', line: 'hongxiao', name: '缘起 · 一线红', key: '缘', desc: '红绡驰援战场：周期性向敌人绽放花瓣弹幕', gate: 'hongxiao' },
-    { id: 'hx2', line: 'hongxiao', name: '红颜盛放', key: '缘', desc: '花瓣弹变为九连，且贯穿敌人', req: 'hx1' },
-    { id: 'hx3', line: 'hongxiao', name: '心有灵犀', key: '缘', desc: '你每次豚跃，红绡立刻为你齐射一轮', req: 'hx1' },
-    { id: 'hx4', line: 'hongxiao', name: '双人舞', key: '缘', desc: '红绡镜着你的走位起舞，覆盖另半个战场', req: 'hx1' },
-    { id: 'hx5', line: 'hongxiao', name: '情丝缠绕', key: '缘', desc: '花瓣缠住敌人，使其迟缓', req: 'hx1' },
+    // ===== 缘·红绡：弹幕烈焰的师姐（缘起由剧情直接缔结） =====
+    { id: 'hx1', line: 'hongxiao', name: '缘起 · 一线红', key: '缘', tier: 1, desc: '红绡驰援：周期绽放花瓣弹幕', gate: 'hongxiao' },
+    { id: 'hx2', line: 'hongxiao', name: '红颜盛放', key: '缘', tier: 2, desc: '花瓣变九连，且贯穿', req: 'hx1' },
+    { id: 'hx3', line: 'hongxiao', name: '心有灵犀', key: '缘', tier: 2, desc: '你豚跃，红绡随即齐射', req: 'hx1' },
+    { id: 'hx4', line: 'hongxiao', name: '双人舞', key: '缘', tier: 2, desc: '红绡镜着你起舞，覆盖半场', req: 'hx1' },
+    { id: 'hx5', line: 'hongxiao', name: '情丝缠绕', key: '缘', tier: 2, desc: '花瓣缠敌，使其迟缓', req: 'hx1' },
 
     // ===== 缘·灵儿：守阁的小键灵 =====
-    { id: 'lg1', line: 'linger', name: '缘起 · 守阁灵', key: '缘', desc: '灵儿相随：不时吹出一颗回复泡', gate: 'linger' },
-    { id: 'lg2', line: 'linger', name: '灵光护主', key: '缘', desc: '你受击时灵儿展开护罩护你一秒（每十秒一次）', req: 'lg1' },
-    { id: 'lg3', line: 'linger', name: '泡中藏音', key: '缘', desc: '回复泡同时灌满一口音波', req: 'lg1' },
-    { id: 'lg4', line: 'linger', name: '顽皮泡泡', key: '缘', desc: '泡泡会在场上弹跳，撞到敌人炸出水花', req: 'lg1' },
-    { id: 'lg5', line: 'linger', name: '心意相通', key: '缘', desc: '灵儿在你身边时，吐纳引导快一倍', req: 'lg1' },
+    { id: 'lg1', line: 'linger', name: '缘起 · 守阁灵', key: '缘', tier: 1, desc: '灵儿相随：不时吹出回复泡', gate: 'linger' },
+    { id: 'lg2', line: 'linger', name: '灵光护主', key: '缘', tier: 2, desc: '你受击时灵儿护你一秒', req: 'lg1' },
+    { id: 'lg3', line: 'linger', name: '泡中藏音', key: '缘', tier: 2, desc: '回复泡附带一口音波', req: 'lg1' },
+    { id: 'lg4', line: 'linger', name: '顽皮泡泡', key: '缘', tier: 2, desc: '泡泡弹跳，撞敌炸水花', req: 'lg1' },
+    { id: 'lg5', line: 'linger', name: '心意相通', key: '缘', tier: 2, desc: '灵儿在侧，吐纳快一倍', req: 'lg1' },
 
     // ===== 缘·静姝：止水神箭的道侣 =====
-    { id: 'js1', line: 'jingshu', name: '缘起 · 止水', key: '缘', desc: '静姝入阵：定于一点，向敌人连绵放箭', gate: 'jingshu' },
-    { id: 'js2', line: 'jingshu', name: '洞穿', key: '缘', desc: '静姝的水箭贯穿一切，且更迅疾', req: 'js1' },
-    { id: 'js3', line: 'jingshu', name: '动静相宜', key: '缘', desc: '你动，她蓄势；你一站定，她倾泻连射', req: 'js1' },
-    { id: 'js4', line: 'jingshu', name: '涟漪', key: '缘', desc: '水箭命中处泛起涟漪，波及周围', req: 'js1' },
-    { id: 'js5', line: 'jingshu', name: '心如止水', key: '缘', desc: '站在静姝身侧，周围的敌弹随之迟缓', req: 'js1' },
+    { id: 'js1', line: 'jingshu', name: '缘起 · 止水', key: '缘', tier: 1, desc: '静姝入阵：定点连绵放箭', gate: 'jingshu' },
+    { id: 'js2', line: 'jingshu', name: '洞穿', key: '缘', tier: 2, desc: '水箭贯穿一切，更迅疾', req: 'js1' },
+    { id: 'js3', line: 'jingshu', name: '动静相宜', key: '缘', tier: 2, desc: '你站定，她倾泻连射', req: 'js1' },
+    { id: 'js4', line: 'jingshu', name: '涟漪', key: '缘', tier: 2, desc: '水箭命中泛起涟漪', req: 'js1' },
+    { id: 'js5', line: 'jingshu', name: '心如止水', key: '缘', tier: 2, desc: '立于静姝身侧，敌弹迟缓', req: 'js1' },
   ],
 
   // ---- 代价池（残誓，严格「x别x按x那x个x键x」句式）----
@@ -136,19 +138,14 @@ G.Powers = {
   // 抽三个神通 + 各配一条隐藏代价
   rollOffers(n, levelId) {
     let pool = this.list.filter(p => this.usable(p));
-    // 羁绊保底：刚认识的姑娘，第一次升级必出她的缘起卡
-    const bondBases = ['hx1', 'lg1', 'js1'];
+    // 先易后难：前两个只发一眼就懂的，玩顺了再上花活
+    const owned = G.run.powers.length;
+    const maxTier = owned < 2 ? 1 : owned < 5 ? 2 : 3;
+    const easy = pool.filter(p => (p.tier || 2) <= maxTier);
+    if (easy.length >= n) pool = easy;
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    for (const b of bondBases) {
-      const p = this.byId[b];
-      if (this.usable(p) && !G.run.bondPity[b]) {
-        pool = [p].concat(pool.filter(x => x.id !== b));
-        G.run.bondPity[b] = true;
-        break;
-      }
     }
     const offers = pool.slice(0, n);
     // 配代价：排除与当前关键誓死锁的、与已生效残誓重复的；本次三张不重复
@@ -215,8 +212,8 @@ class PowerPick {
     const o = this.offers[this.sel];
     G.run.powers.push(o.power.id);
     if (o.power.apply) o.power.apply();
-    // 掷代价时效：1~4 关
-    this.dur = G.util.randInt(1, 4);
+    // 掷代价时效：1~3 关
+    this.dur = G.util.randInt(1, 3);
     const rule = G.Curses.create(o.cost.curse);
     rule.levelsLeft = this.dur;
     G.run.tempCurses.push({ rule, left: this.dur, cardName: o.power.name });
@@ -290,12 +287,12 @@ class PowerPick {
         if (a >= 1) { ctx.shadowColor = 'rgba(255,60,40,0.6)'; ctx.shadowBlur = 16; }
         this.wrap(ctx, '「' + o.cost.tmpl + '」', G.W / 2, y + 376, cw - 70, 46);
         ctx.shadowBlur = 0;
-        ctx.fillStyle = '#a98080';
-        ctx.font = G.font(22);
-        this.wrap(ctx, o.cost.note, G.W / 2, y + 470, cw - 90, 30);
+        ctx.fillStyle = '#6a5560';
+        ctx.font = G.font(20);
+        ctx.fillText('（何意？自己领悟。）', G.W / 2, y + 470);
         ctx.fillStyle = '#ffd166';
         ctx.font = G.font(28);
-        ctx.fillText(`残誓 · ${this.dur} 关`, G.W / 2, y + 546);
+        ctx.fillText(`残誓 · ${this.dur} 关`, G.W / 2, y + 530);
         ctx.globalAlpha = 1;
       }
       ctx.restore();
