@@ -19,6 +19,7 @@
       "electron-main.js"
     ],
     "win": {
+      "icon": "assets/icon-256.png",
       "target": [
         {
           "target": "portable",
@@ -26,28 +27,16 @@
             "x64"
           ]
         }
-      ],
-      "icon": "assets/icon-256.png"
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "icon": "assets/icon-2048.png",
-      "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      ]
     }
   },
   "devDependencies": {
     "canvas": "^3.2.3",
     "electron": "^32.0.0",
-    "electron-builder": "^24.13.3",
+    "electron-builder": "^26.15.3",
     "sharp": "^0.35.3"
+  },
+  "dependencies": {
+    "pump": "^3.0.4"
   }
 }
